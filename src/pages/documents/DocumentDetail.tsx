@@ -174,10 +174,11 @@ export default function DocumentDetail() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-2 p-3 border-b border-border">
+      <div className="flex items-center gap-2 p-2 border-b border-border">
         <Button
           variant="ghost"
           size="icon"
+          className="h-9 w-9"
           onClick={() => navigate(backPath)}
           aria-label="Retour"
         >
@@ -188,7 +189,7 @@ export default function DocumentDetail() {
           <Input
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
-            className="text-lg font-semibold flex-1"
+            className="h-9 text-lg font-semibold flex-1"
             placeholder="Titre du document"
           />
         ) : (
