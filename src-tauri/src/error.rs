@@ -2,6 +2,7 @@ use serde::Serialize;
 
 /// Type d'erreur uniforme sérialisable vers le frontend
 #[derive(Debug, thiserror::Error, Serialize)]
+#[allow(dead_code)]
 pub enum AppError {
     #[error("Erreur fichier : {0}")]
     FileError(String),
