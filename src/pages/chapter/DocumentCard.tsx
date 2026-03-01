@@ -2,7 +2,7 @@ import { useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Trash2, FileDown } from "lucide-react"
-import { formatDate, type Doc } from "./types"
+import type { Doc } from "./types"
 
 interface DocumentCardProps {
   doc: Doc
@@ -26,9 +26,6 @@ export function DocumentCard({ doc, chapterId, onExport, onDelete }: DocumentCar
       <h3 className="font-medium truncate flex-1">
         {doc.title || "Sans titre"}
       </h3>
-      <span className="text-xs text-muted-foreground shrink-0">
-        {formatDate(doc.updated_at || doc.created_at)}
-      </span>
       <Button
         variant="ghost"
         size="icon"

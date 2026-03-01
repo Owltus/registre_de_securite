@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils"
 import { getChapterIcon, type ChapterRow, type NavItemData } from "@/lib/navigation"
 import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
+import { on, CHAPTERS_CHANGED } from "@/lib/events"
 import { NavItem } from "./NavItem"
 import { IconPicker } from "./IconPicker"
 
@@ -53,6 +54,9 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
   // Chargement des chapitres depuis la DB
   const { data: chapters, refetch } = useQuery<ChapterRow>("chapters")
   const { insert, update } = useMutation("chapters")
+
+  // Rafraîchir quand un autre composant modifie les chapitres
+  useEffect(() => on(CHAPTERS_CHANGED, refetch), [refetch])
 
   // Chapitres triés par sort_order (source DB)
   const dbSorted = useMemo(
