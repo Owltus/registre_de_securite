@@ -3,25 +3,24 @@ import { useNavigate } from "react-router-dom"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { Button } from "@/components/ui/button"
-import { Trash2, FileDown, Pencil, Columns3 } from "lucide-react"
+import { Trash2, FileDown, Pencil, PenLine } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { TrackingSheet, Periodicite } from "./types"
-import type { TrackingSheetDragData } from "@/lib/dnd/useDndRegistry"
+import type { SignatureSheet } from "./types"
+import type { SignatureSheetDragData } from "@/lib/dnd/useDndRegistry"
 
-interface TrackingSheetCardProps {
-  sheet: TrackingSheet
+interface SignatureSheetCardProps {
+  sheet: SignatureSheet
   chapterId: string
-  periodicite?: Periodicite
-  onExport: (e: React.MouseEvent, sheet: TrackingSheet) => void
-  onEdit: (e: React.MouseEvent, sheet: TrackingSheet) => void
-  onDelete: (e: React.MouseEvent, sheet: TrackingSheet) => void
+  onExport: (e: React.MouseEvent, sheet: SignatureSheet) => void
+  onEdit: (e: React.MouseEvent, sheet: SignatureSheet) => void
+  onDelete: (e: React.MouseEvent, sheet: SignatureSheet) => void
 }
 
-export function TrackingSheetCard({ sheet, chapterId, periodicite, onExport, onEdit, onDelete }: TrackingSheetCardProps) {
+export function SignatureSheetCard({ sheet, chapterId, onExport, onEdit, onDelete }: SignatureSheetCardProps) {
   const navigate = useNavigate()
 
-  const dragData: TrackingSheetDragData = {
-    type: "tracking_sheet",
+  const dragData: SignatureSheetDragData = {
+    type: "signature_sheet",
     sheetId: sheet.id,
     sheetTitle: sheet.title,
     sourceChapterId: chapterId,
@@ -35,7 +34,7 @@ export function TrackingSheetCard({ sheet, chapterId, periodicite, onExport, onE
     transition,
     isDragging,
   } = useSortable({
-    id: `sheet-${sheet.id}`,
+    id: `sig-${sheet.id}`,
     data: dragData,
   })
 
@@ -45,7 +44,7 @@ export function TrackingSheetCard({ sheet, chapterId, periodicite, onExport, onE
   }
 
   const handleClick = useCallback(() => {
-    navigate(`/chapitres/${chapterId}/sheets/${sheet.id}`)
+    navigate(`/chapitres/${chapterId}/signatures/${sheet.id}`)
   }, [navigate, chapterId, sheet.id])
 
   return (
@@ -60,15 +59,10 @@ export function TrackingSheetCard({ sheet, chapterId, periodicite, onExport, onE
       )}
       onClick={handleClick}
     >
-      <Columns3 className="h-4 w-4 text-muted-foreground shrink-0" />
+      <PenLine className="h-4 w-4 text-muted-foreground shrink-0" />
       <h3 className="text-sm font-medium truncate flex-1">
         {sheet.title || "Sans titre"}
       </h3>
-      {periodicite && (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground shrink-0">
-          {periodicite.label}
-        </span>
-      )}
       <Button
         variant="ghost"
         size="icon"

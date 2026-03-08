@@ -1,8 +1,7 @@
 import { A4Page } from "./A4Page"
 
-interface TrackingSheetPageProps {
+interface SignatureSheetPageProps {
   title: string
-  periodiciteLabel: string
   nombre: number
   chapterName?: string
   establishment?: string
@@ -10,23 +9,21 @@ interface TrackingSheetPageProps {
 }
 
 /**
- * Feuille de suivi — toujours 1 seule page A4.
- * Contient un sous-titre (périodicité) et un tableau Date | Note | Signature.
+ * Feuille de signature — toujours 1 seule page A4.
+ * Contient un tableau Date | Nom/Prénom | Signature.
  */
-export function TrackingSheetPage({
+export function SignatureSheetPage({
   title,
-  periodiciteLabel,
   nombre,
   chapterName,
   establishment,
   themed,
-}: TrackingSheetPageProps) {
+}: SignatureSheetPageProps) {
   const rows = Array.from({ length: nombre }, (_, i) => i)
 
   return (
     <A4Page
       title={title}
-      subtitle={periodiciteLabel}
       chapterName={chapterName}
       establishment={establishment}
       themed={themed}
@@ -34,13 +31,13 @@ export function TrackingSheetPage({
       <table className="tracking-table">
         <colgroup>
           <col style={{ width: "20%" }} />
-          <col style={{ width: "55%" }} />
-          <col style={{ width: "25%" }} />
+          <col style={{ width: "45%" }} />
+          <col style={{ width: "35%" }} />
         </colgroup>
         <thead>
           <tr>
             <th>Date</th>
-            <th>Note</th>
+            <th>Nom / Prénom</th>
             <th>Signature</th>
           </tr>
         </thead>

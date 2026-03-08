@@ -22,7 +22,14 @@ export interface TrackingSheetDragData {
   sourceChapterId: string
 }
 
-export type DragData = ChapterDragData | DocumentDragData | TrackingSheetDragData
+export interface SignatureSheetDragData {
+  type: "signature_sheet"
+  sheetId: number
+  sheetTitle: string
+  sourceChapterId: string
+}
+
+export type DragData = ChapterDragData | DocumentDragData | TrackingSheetDragData | SignatureSheetDragData
 
 export type DragHandler = (event: DragEndEvent) => void
 

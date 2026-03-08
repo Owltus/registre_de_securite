@@ -26,9 +26,20 @@ export interface TrackingSheet {
   updated_at: string
 }
 
+export interface SignatureSheet {
+  id: number
+  title: string
+  chapter_id: string
+  nombre: number
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export type ChapterItem =
   | { kind: "document"; data: Doc }
   | { kind: "tracking_sheet"; data: TrackingSheet }
+  | { kind: "signature_sheet"; data: SignatureSheet }
 
 /** Calcule le statut d'un chapitre selon le nombre de documents */
 export function computeStatus(docCount: number): ChapterStatus {

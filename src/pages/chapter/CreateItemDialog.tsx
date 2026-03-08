@@ -10,10 +10,10 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { useQuery } from "@/lib/hooks/useQuery"
-import { X, ArrowLeft, FileText, ClipboardList } from "lucide-react"
+import { X, ArrowLeft, FileText, Columns3, PenLine } from "lucide-react"
 import type { Periodicite } from "./types"
 
-type ItemType = "document" | "tracking_sheet"
+type ItemType = "document" | "tracking_sheet" | "signature_sheet"
 type Step = "choose" | "form"
 
 interface CreateItemDialogProps {
@@ -21,6 +21,7 @@ interface CreateItemDialogProps {
   onOpenChange: (open: boolean) => void
   onCreateDocument: (title: string) => void
   onCreateTrackingSheet: (title: string, periodiciteId: number) => void
+  onCreateSignatureSheet: (title: string) => void
 }
 
 export function CreateItemDialog({
@@ -28,12 +29,12 @@ export function CreateItemDialog({
   onOpenChange,
   onCreateDocument,
   onCreateTrackingSheet,
+  onCreateSignatureSheet,
 }: CreateItemDialogProps) {
   const [step, setStep] = useState<Step>("choose")
   const [itemType, setItemType] = useState<ItemType>("document")
   const [title, setTitle] = useState("Sans titre")
   const [periodiciteId, setPeriodiciteId] = useState<string>("")
-
   const { data: periodicites } = useQuery<Periodicite>("periodicites")
 
   const reset = () => {
@@ -51,10 +52,12 @@ export function CreateItemDialog({
   const handleSubmit = () => {
     if (itemType === "document") {
       onCreateDocument(title.trim() || "Sans titre")
-    } else {
+    } else if (itemType === "tracking_sheet") {
       const pId = Number(periodiciteId)
       if (!pId) return
       onCreateTrackingSheet(title.trim() || "Sans titre", pId)
+    } else {
+      onCreateSignatureSheet(title.trim() || "Sans titre")
     }
     reset()
   }
@@ -64,7 +67,9 @@ export function CreateItemDialog({
       ? "Nouveau"
       : itemType === "document"
         ? "Nouveau document"
-        : "Nouvelle feuille de suivi"
+        : itemType === "tracking_sheet"
+          ? "Nouvelle feuille de suivi"
+          : "Nouvelle feuille de signature"
 
   return (
     <Dialog.Root
@@ -122,12 +127,28 @@ export function CreateItemDialog({
                 className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 text-left hover:border-primary/50 hover:bg-accent/50 transition-colors"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-accent-foreground shrink-0">
-                  <ClipboardList className="h-4 w-4" />
+                  <Columns3 className="h-4 w-4" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Feuille de suivi</p>
                   <p className="text-xs text-muted-foreground">
                     Suivi périodique avec tableau de vérifications
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleChoose("signature_sheet")}
+                className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 text-left hover:border-primary/50 hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-accent-foreground shrink-0">
+                  <PenLine className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Feuille de signature</p>
+                  <p className="text-xs text-muted-foreground">
+                    Feuille d'émargement avec date
                   </p>
                 </div>
               </button>
@@ -151,7 +172,9 @@ export function CreateItemDialog({
                   placeholder={
                     itemType === "document"
                       ? "Titre du document"
-                      : "Titre de la feuille de suivi"
+                      : itemType === "tracking_sheet"
+                        ? "Titre de la feuille de suivi"
+                        : "Titre de la feuille de signature"
                   }
                   autoFocus
                   onFocus={(e) => e.target.select()}

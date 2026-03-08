@@ -60,6 +60,12 @@ pub fn run() {
                             sql: include_str!("../sql/schema.sql"),
                             kind: tauri_plugin_sql::MigrationKind::Up,
                         },
+                        tauri_plugin_sql::Migration {
+                            version: 2,
+                            description: "feuilles de signature",
+                            sql: include_str!("../sql/v2_signature_sheets.sql"),
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                        },
                     ],
                 )
                 .build(),

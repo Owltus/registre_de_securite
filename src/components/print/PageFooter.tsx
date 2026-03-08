@@ -1,4 +1,6 @@
 import { FOOTER_RULE_MM, FOOTER_HEIGHT_MM, PAGINATION_HEIGHT_MM, GAP_MM } from "@/lib/print/constants"
+import { DEFAULT_REGISTRY_NAME } from "@/lib/navigation"
+import { usePreference } from "@/lib/hooks/usePreference"
 
 interface PageFooterProps {
   establishment?: string
@@ -17,6 +19,7 @@ export function PageFooter({
   totalPages,
   themed,
 }: PageFooterProps) {
+  const [registryName] = usePreference("registry_name", DEFAULT_REGISTRY_NAME)
   const estLines = establishment.split("\n")
   const showPagination = totalPages != null && totalPages > 1
 
@@ -65,7 +68,7 @@ export function PageFooter({
         <tbody>
           <tr>
             <td style={{ width: "30%", fontWeight: 600, textAlign: "center", verticalAlign: "middle" }}>
-              Registre de sécurité
+              {registryName}
             </td>
             <td style={{ width: "40%", textAlign: "center", verticalAlign: "middle" }}>
               {estLines.map((line, i) => (

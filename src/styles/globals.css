@@ -427,6 +427,17 @@
   color: hsl(var(--muted-foreground));
 }
 
+/* Tableau de suivi — overrides thématiques */
+.a4-page-themed .tracking-table th {
+  background-color: hsl(var(--muted));
+  border-color: hsl(var(--border));
+  color: hsl(var(--card-foreground));
+}
+.a4-page-themed .tracking-table td {
+  border-color: hsl(var(--border));
+  color: hsl(var(--card-foreground));
+}
+
 /* ═══════════════════════════════════════════════════════ */
 /* Mode debug — fonds colorés + bordures sur chaque zone  */
 /* ═══════════════════════════════════════════════════════ */

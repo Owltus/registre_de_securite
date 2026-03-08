@@ -1,16 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import remarkMath from "remark-math"
-import rehypeKatex from "rehype-katex"
 import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
 import type { ChapterRow } from "@/lib/navigation"
 import { PrintPreview } from "@/components/print/PrintPreview"
 import { DocumentPages } from "@/components/print/DocumentPages"
-import { preprocessPageBreaks, PAGEBREAK_MARKER } from "@/lib/print/preprocessPageBreaks"
-import { MermaidBlock } from "@/components/MermaidBlock"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -33,6 +27,7 @@ export default function DocumentDetail() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const previewScrollRef = useRef<HTMLDivElement>(null)
   const editorScrollRef = useRef<HTMLTextAreaElement>(null)
+  const roRef = useRef<ResizeObserver | null>(null)
   const isSyncing = useRef(false)
 
   const backPath = chapterId ? `/chapitres/${chapterId}` : "/"
@@ -71,19 +66,23 @@ export default function DocumentDetail() {
     return () => clearTimeout(timer)
   }, [editContent])
 
-  // ResizeObserver pour le scaling dynamique
-  useEffect(() => {
-    const el = previewScrollRef.current
-    if (!el || !editing) return
+  // Ref callback pour attacher le ResizeObserver au bon conteneur
+  const previewRefCallback = useCallback((node: HTMLDivElement | null) => {
+    previewScrollRef.current = node
+    if (roRef.current) {
+      roRef.current.disconnect()
+      roRef.current = null
+    }
+    if (!node) return
     const ro = new ResizeObserver((entries) => {
       const width = entries[0].contentRect.width
-      const pageWidthPx = 210 * 3.7795 // ~793px
-      const padding = 48 // marges internes
+      const pageWidthPx = 210 * 3.7795
+      const padding = 48
       setScale(Math.min(1, (width - padding) / pageWidthPx))
     })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [editing])
+    ro.observe(node)
+    roRef.current = ro
+  }, [])
 
   const handleSave = async () => {
     if (!id) return
@@ -185,30 +184,29 @@ export default function DocumentDetail() {
             <>
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-9 w-9"
                 onClick={() => {
                   setEditing(false)
                   setEditTitle(doc.title)
                   setEditContent(doc.content)
                 }}
+                aria-label="Aperçu"
+                title="Aperçu"
               >
-                <Eye className="h-4 w-4 mr-1.5" />
-                Aperçu
+                <Eye className="h-4 w-4" />
               </Button>
-              <Button size="sm" onClick={handleSave}>
-                <Save className="h-4 w-4 mr-1.5" />
-                Sauvegarder
+              <Button size="icon" className="h-9 w-9" onClick={handleSave} aria-label="Sauvegarder" title="Sauvegarder">
+                <Save className="h-4 w-4" />
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" size="sm" onClick={handleStartEdit}>
-                <Pencil className="h-4 w-4 mr-1.5" />
-                Édition
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleStartEdit} aria-label="Édition" title="Édition">
+                <Pencil className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <FileDown className="h-4 w-4 mr-1.5" />
-                Exporter PDF
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleExport} aria-label="Exporter PDF" title="Exporter PDF">
+                <FileDown className="h-4 w-4" />
               </Button>
             </>
           )}
@@ -221,7 +219,7 @@ export default function DocumentDetail() {
         <div className="flex flex-1 min-h-0">
           {/* Aperçu A4 temps réel (gauche) */}
           <div
-            ref={previewScrollRef}
+            ref={previewRefCallback}
             onScroll={() => syncScroll("preview")}
             className="w-1/2 overflow-y-auto border-r border-border bg-muted/30"
           >
@@ -248,33 +246,18 @@ export default function DocumentDetail() {
           </div>
         </div>
       ) : (
-        // Mode aperçu
-        <div className="flex-1 overflow-y-auto p-6">
-          <div
-            className="prose max-w-none mx-auto"
-            style={{ maxWidth: "210mm" }}
-          >
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({ children }: { children?: React.ReactNode }) => {
-                  const text = React.Children.toArray(children)
-                  if (text.length === 1 && typeof text[0] === "string" && text[0].trim() === PAGEBREAK_MARKER) {
-                    return <hr className="border-dashed opacity-40" />
-                  }
-                  return <p>{children}</p>
-                },
-                code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
-                  if (className === "language-mermaid") {
-                    return <MermaidBlock code={String(children).trim()} />
-                  }
-                  return <code className={className}>{children}</code>
-                },
-              }}
-            >
-              {preprocessPageBreaks(editContent)}
-            </ReactMarkdown>
+        // Mode aperçu — pages A4 empilées
+        <div
+          ref={previewRefCallback}
+          className="flex-1 overflow-y-auto bg-muted/30"
+        >
+          <div className="flex flex-col items-center gap-4 py-4" style={{ zoom: scale }}>
+            <DocumentPages
+              title={editTitle || "Sans titre"}
+              content={editContent}
+              chapterName={chapter?.label}
+              themed
+            />
           </div>
         </div>
       )}

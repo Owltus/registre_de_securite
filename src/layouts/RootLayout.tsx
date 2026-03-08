@@ -6,7 +6,9 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Sidebar } from "@/components/Sidebar"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { AppLogo } from "@/components/AppLogo"
-import { APP_NAME } from "@/lib/navigation"
+import { DEFAULT_REGISTRY_NAME } from "@/lib/navigation"
+import { usePreference } from "@/lib/hooks/usePreference"
+import { on, REGISTRY_NAME_CHANGED } from "@/lib/events"
 import { DndProvider } from "@/lib/dnd/DndProvider"
 
 /** Icône « restaurer » Windows : deux carrés superposés */
@@ -33,7 +35,26 @@ export function RootLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [maximized, setMaximized] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [registryName] = usePreference("registry_name", DEFAULT_REGISTRY_NAME)
+  const [displayName, setDisplayName] = useState(registryName)
   const appWindow = getCurrentWindow()
+
+  // Synchroniser displayName quand usePreference charge la valeur initiale
+  useEffect(() => { setDisplayName(registryName) }, [registryName])
+
+  // Écouter les changements de nom depuis le dashboard
+  useEffect(() => on(REGISTRY_NAME_CHANGED, () => {
+    // Re-lire la préférence depuis la DB
+    import("@/lib/db").then(({ getDb }) =>
+      getDb().then(async (db) => {
+        const rows = await db.select<{ value: string }[]>(
+          "SELECT value FROM preferences WHERE key = $1",
+          ["registry_name"]
+        )
+        if (rows.length > 0) setDisplayName(rows[0].value)
+      })
+    )
+  }), [])
 
   // Suivre l'état maximisé (couvre bouton, double-clic, Aero Snap, raccourcis)
   useEffect(() => {
@@ -54,7 +75,7 @@ export function RootLayout() {
         {/* Gauche : logo + nom (pointer-events-none pour laisser le drag traverser) */}
         <div className="pointer-events-none flex items-center gap-2">
           <AppLogo size={20} />
-          <span className="text-sm font-semibold">{APP_NAME}</span>
+          <span className="text-sm font-semibold">{displayName}</span>
         </div>
 
         {/* Droite : hamburger (mobile) + boutons fenêtre */}

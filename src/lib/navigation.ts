@@ -134,8 +134,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-/** Nom de l'application — utilisé dans la sidebar, la top bar, etc. */
-export const APP_NAME = "Registre de Sécurité"
+/** Nom par défaut du registre — modifiable par l'utilisateur via les préférences */
+export const DEFAULT_REGISTRY_NAME = "Registre de Sécurité"
 
 /** Item de navigation générique — utilisé par le composant NavItem */
 export interface NavItemData {

@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable"
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers"
 import * as Dialog from "@radix-ui/react-dialog"
-import { Settings, Plus, X } from "lucide-react"
+import { Settings, Plus, X, Home } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,7 @@ import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
 import { on, CHAPTERS_CHANGED } from "@/lib/events"
 import { useDndRegistry } from "@/lib/dnd/useDndRegistry"
+import { useLocation } from "react-router-dom"
 import { NavItem } from "./NavItem"
 import { IconPicker } from "./IconPicker"
 
@@ -41,6 +42,8 @@ interface SidebarProps {
 
 export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings }: SidebarProps) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const isHome = location.pathname === "/"
 
   // Détecte si la sidebar desktop est étendue (lg+)
   const [isExpanded, setIsExpanded] = useState(() => window.matchMedia(LG_QUERY).matches)
@@ -178,6 +181,45 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
     )
   }
 
+  // Lien Accueil — stylisé comme un NavItem
+  const HomeLink = ({ responsive, onClick: onItemClick }: { responsive?: boolean; onClick?: () => void }) => {
+    const showTooltipHome = responsive && !isExpanded
+    return (
+      <Tooltip open={showTooltipHome ? undefined : false}>
+        <TooltipTrigger asChild>
+          <div>
+            <button
+              onClick={() => { navigate("/"); onItemClick?.() }}
+              className={cn(
+                "flex items-center rounded-lg py-2 transition-colors w-full",
+                isHome
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                !responsive && "gap-3 px-3"
+              )}
+            >
+              {responsive ? (
+                <span className="flex items-center justify-center w-12 shrink-0">
+                  <Home className="h-5 w-5" />
+                </span>
+              ) : (
+                <Home className="h-5 w-5 shrink-0" />
+              )}
+              <span className={cn(
+                "text-sm whitespace-nowrap",
+                responsive && "transition-opacity duration-200",
+                responsive && !isExpanded && "opacity-0"
+              )}>
+                Accueil
+              </span>
+            </button>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right">Accueil</TooltipContent>
+      </Tooltip>
+    )
+  }
+
   // Liste sortable des chapitres — version desktop (utilise le DndContext du DndProvider)
   const DesktopChapterList = ({ responsive }: { responsive?: boolean }) => {
     const dndRegistry = useDndRegistry()
@@ -311,6 +353,7 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
           )}
         >
           <div className="border-b p-2 flex flex-col gap-1">
+            <HomeLink onClick={onClose} />
             <AddChapterButton />
           </div>
 
@@ -346,6 +389,7 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
         )}
       >
         <div className="border-b p-2 flex flex-col gap-1">
+          <HomeLink responsive />
           <AddChapterButton responsive />
         </div>
 
