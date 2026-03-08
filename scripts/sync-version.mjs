@@ -1,19 +1,19 @@
 /**
  * Synchronise la version dans tauri.conf.json et Cargo.toml
- * après que bumpp ait mis à jour package.json.
+ * en lisant la version depuis package.json (source de vérité).
  *
- * Usage : node scripts/sync-version.mjs <version>
+ * Usage : node scripts/sync-version.mjs
  */
 import { readFileSync, writeFileSync } from "fs"
 import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const version = process.argv[2]
-if (!version) {
-  console.error("Usage: node scripts/sync-version.mjs <version>")
-  process.exit(1)
-}
+
+// Lire la version depuis package.json (source de vérité)
+const pkgPath = resolve(__dirname, "../package.json")
+const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"))
+const version = pkg.version
 
 // tauri.conf.json
 const tauriPath = resolve(__dirname, "../src-tauri/tauri.conf.json")
