@@ -4,6 +4,7 @@ interface SignatureSheetPageProps {
   title: string
   nombre: number
   chapterName?: string
+  classeurName?: string
   establishment?: string
   themed?: boolean
 }
@@ -16,6 +17,7 @@ export function SignatureSheetPage({
   title,
   nombre,
   chapterName,
+  classeurName,
   establishment,
   themed,
 }: SignatureSheetPageProps) {
@@ -25,6 +27,7 @@ export function SignatureSheetPage({
     <A4Page
       title={title}
       chapterName={chapterName}
+      classeurName={classeurName}
       establishment={establishment}
       themed={themed}
     >

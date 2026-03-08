@@ -3,17 +3,18 @@ import { useParams, useNavigate } from "react-router-dom"
 import type { DragEndEvent } from "@dnd-kit/core"
 import {
   SortableContext,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable"
 import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
-import type { ChapterRow } from "@/lib/navigation"
-import { getChapterIcon } from "@/lib/navigation"
+import type { ChapterRow, ClasseurRow } from "@/lib/navigation"
+import { DEFAULT_REGISTRY_NAME, buildEstablishment } from "@/lib/navigation"
 import { useDndRegistry, type DocumentDragData, type TrackingSheetDragData, type SignatureSheetDragData } from "@/lib/dnd/useDndRegistry"
 import { PrintPreview } from "@/components/print/PrintPreview"
 import { DocumentPages } from "@/components/print/DocumentPages"
 import { TrackingSheetPage } from "@/components/print/TrackingSheetPage"
 import { SignatureSheetPage } from "@/components/print/SignatureSheetPage"
+import { CoverPage } from "@/components/print/CoverPage"
 import { Button } from "@/components/ui/button"
 import { Plus, FileText, Pencil, Printer } from "lucide-react"
 import type { Doc, TrackingSheet, SignatureSheet, Periodicite, ChapterItem } from "./types"
@@ -31,8 +32,15 @@ import { useDropZone, DropOverlay } from "./DropZone"
 import { emit, CHAPTERS_CHANGED } from "@/lib/events"
 
 export default function ChapterPage() {
-  const { chapterId } = useParams<{ chapterId: string }>()
+  const { chapterId, classeurId } = useParams<{ chapterId: string; classeurId: string }>()
   const navigate = useNavigate()
+
+  // Chargement du classeur depuis la DB
+  const classeurFilters = useMemo(() => ({ id: Number(classeurId) }), [classeurId])
+  const { data: classeurRows } = useQuery<ClasseurRow>("classeurs", classeurFilters)
+  const classeur = classeurRows[0] ?? null
+  const classeurName = classeur?.name ?? DEFAULT_REGISTRY_NAME
+  const establishment = buildEstablishment(classeur)
 
   // Chargement du chapitre depuis la DB
   const chapterFilters = useMemo(() => ({ id: Number(chapterId) }), [chapterId])
@@ -308,7 +316,7 @@ export default function ChapterPage() {
     if (!chapterId) return
     await removeChapter(chapterId)
     emit(CHAPTERS_CHANGED)
-    navigate("/")
+    navigate(classeurId ? `/classeurs/${classeurId}` : "/")
   }, [chapterId, removeChapter, navigate])
 
   // Suppression
@@ -340,22 +348,13 @@ export default function ChapterPage() {
     )
   }
 
-  const Icon = getChapterIcon(chapter.icon)
-
   return (
     <div className="flex flex-col h-full" {...dragProps}>
       {/* Header */}
       <div className="flex items-center gap-2 p-2 border-b border-border">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-accent-foreground shrink-0">
-          <Icon className="h-4 w-4" />
-        </div>
-
-        <h1 className="text-sm font-semibold truncate flex-1 min-w-0">
-          {chapter.label}
-          {chapter.description && (
-            <span className="font-normal text-muted-foreground"> — {chapter.description}</span>
-          )}
-        </h1>
+        <span className="text-sm text-muted-foreground truncate flex-1 min-w-0">
+          {chapter.description || chapter.label}
+        </span>
 
         <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setPrintPreview({ type: "all" })} aria-label="Tout imprimer" title="Tout imprimer">
           <Printer className="h-4 w-4" />
@@ -370,7 +369,7 @@ export default function ChapterPage() {
 
       {/* Corps */}
       <div className="flex-1 overflow-y-auto p-6 flex flex-col">
-       <div className="mx-auto flex-1 flex flex-col w-full" style={{ maxWidth: "210mm" }}>
+       <div className="mx-auto flex-1 flex flex-col w-full">
 
         {/* Zone de drop — prend tout l'espace restant */}
         <div className="relative flex-1 rounded-lg flex flex-col">
@@ -387,14 +386,18 @@ export default function ChapterPage() {
               <p className="text-sm mt-1">Cliquez sur Nouveau pour en créer un</p>
             </div>
           ) : (
-            <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-              <div className="flex flex-col gap-2">
+            <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                 {localItems.map((item) =>
                   item.kind === "document" ? (
                     <DocumentCard
                       key={`doc-${item.data.id}`}
                       doc={item.data}
                       chapterId={chapterId!}
+                      classeurId={classeurId}
+                      chapterName={chapter?.label}
+                      classeurName={classeurName}
+                      establishment={establishment}
                       onExport={handleExport}
                       onDelete={handleDeleteClick}
                     />
@@ -403,6 +406,10 @@ export default function ChapterPage() {
                       key={`sheet-${item.data.id}`}
                       sheet={item.data}
                       chapterId={chapterId!}
+                      classeurId={classeurId}
+                      chapterName={chapter?.label}
+                      classeurName={classeurName}
+                      establishment={establishment}
                       periodicite={periodicites.find((p) => p.id === (item.data as TrackingSheet).periodicite_id)}
                       onExport={handleTsExport}
                       onEdit={handleTsEditClick}
@@ -413,6 +420,10 @@ export default function ChapterPage() {
                       key={`sig-${item.data.id}`}
                       sheet={item.data as SignatureSheet}
                       chapterId={chapterId!}
+                      classeurId={classeurId}
+                      chapterName={chapter?.label}
+                      classeurName={classeurName}
+                      establishment={establishment}
                       onExport={handleSsExport}
                       onEdit={handleSsEditClick}
                       onDelete={handleSsDeleteClick}
@@ -433,6 +444,8 @@ export default function ChapterPage() {
             title={printPreview.doc.title || "Sans titre"}
             content={printPreview.doc.content}
             chapterName={chapter?.label}
+            classeurName={classeurName}
+            establishment={establishment}
           />
         )}
         {printPreview?.type === "tracking_sheet" && (
@@ -441,6 +454,8 @@ export default function ChapterPage() {
             periodiciteLabel={printPreview.periodiciteLabel}
             nombre={printPreview.nombre}
             chapterName={chapter?.label}
+            classeurName={classeurName}
+            establishment={establishment}
           />
         )}
         {printPreview?.type === "signature_sheet" && (
@@ -448,6 +463,15 @@ export default function ChapterPage() {
             title={printPreview.sheet.title || "Sans titre"}
             nombre={printPreview.sheet.nombre}
             chapterName={chapter?.label}
+            classeurName={classeurName}
+            establishment={establishment}
+          />
+        )}
+        {printPreview?.type === "all" && (
+          <CoverPage
+            chapterLabel={chapter?.label ?? ""}
+            chapterDescription={chapter?.description}
+            classeurName={classeurName}
           />
         )}
         {printPreview?.type === "all" && localItems.map((item) =>
@@ -457,6 +481,8 @@ export default function ChapterPage() {
               title={item.data.title || "Sans titre"}
               content={item.data.content}
               chapterName={chapter?.label}
+              classeurName={classeurName}
+              establishment={establishment}
             />
           ) : item.kind === "tracking_sheet" ? (
             <TrackingSheetPage
@@ -465,6 +491,8 @@ export default function ChapterPage() {
               periodiciteLabel={periodicites.find((p) => p.id === (item.data as TrackingSheet).periodicite_id)?.label ?? ""}
               nombre={periodicites.find((p) => p.id === (item.data as TrackingSheet).periodicite_id)?.nombre ?? 8}
               chapterName={chapter?.label}
+              classeurName={classeurName}
+              establishment={establishment}
             />
           ) : (
             <SignatureSheetPage
@@ -472,6 +500,8 @@ export default function ChapterPage() {
               title={item.data.title || "Sans titre"}
               nombre={(item.data as SignatureSheet).nombre}
               chapterName={chapter?.label}
+              classeurName={classeurName}
+              establishment={establishment}
             />
           )
         )}

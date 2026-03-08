@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
-import type { ChapterRow } from "@/lib/navigation"
+import type { ChapterRow, ClasseurRow } from "@/lib/navigation"
+import { DEFAULT_REGISTRY_NAME, buildEstablishment } from "@/lib/navigation"
 import { PrintPreview } from "@/components/print/PrintPreview"
 import { SignatureSheetPage } from "@/components/print/SignatureSheetPage"
 import { Button } from "@/components/ui/button"
@@ -24,15 +25,23 @@ const PAGE_W_PX = 210 * 3.7795
 const PAGE_H_PX = 297 * 3.7795
 
 export default function SignatureSheetDetail() {
-  const { id, chapterId } = useParams<{ id: string; chapterId: string }>()
+  const { id, chapterId, classeurId } = useParams<{ id: string; chapterId: string; classeurId: string }>()
   const navigate = useNavigate()
   const [previewOpen, setPreviewOpen] = useState(false)
 
-  const backPath = chapterId ? `/chapitres/${chapterId}` : "/"
+  const backPath = classeurId && chapterId
+    ? `/classeurs/${classeurId}/chapitres/${chapterId}`
+    : chapterId ? `/chapitres/${chapterId}` : "/"
 
   const filters = useMemo(() => ({ id: Number(id) }), [id])
   const { data: sheets, loading, refetch } = useQuery<SignatureSheet>("signature_sheets", filters)
   const sheet = sheets[0] ?? null
+
+  const classeurFilters = useMemo(() => ({ id: Number(classeurId) }), [classeurId])
+  const { data: classeurRows } = useQuery<ClasseurRow>("classeurs", classeurFilters)
+  const classeurObj = classeurRows[0] ?? null
+  const classeurName = classeurObj?.name ?? DEFAULT_REGISTRY_NAME
+  const establishment = buildEstablishment(classeurObj)
 
   const chapterFilters = useMemo(() => ({ id: Number(chapterId) }), [chapterId])
   const { data: chapterRows } = useQuery<ChapterRow>("chapters", chapterFilters)
@@ -180,6 +189,8 @@ export default function SignatureSheetDetail() {
             title={editing ? (editTitle || "Sans titre") : (sheet.title || "Sans titre")}
             nombre={sheet.nombre}
             chapterName={chapter?.label}
+            classeurName={classeurName}
+            establishment={establishment}
             themed
           />
         </div>
@@ -191,6 +202,8 @@ export default function SignatureSheetDetail() {
           title={sheet.title || "Sans titre"}
           nombre={sheet.nombre}
           chapterName={chapter?.label}
+          classeurName={classeurName}
+          establishment={establishment}
         />
       </PrintPreview>
     </div>

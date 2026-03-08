@@ -20,5 +20,5 @@ export function emit(event: string) {
 /** Événement déclenché quand la liste des chapitres change */
 export const CHAPTERS_CHANGED = "chapters:changed"
 
-/** Événement déclenché quand le nom du registre est modifié */
-export const REGISTRY_NAME_CHANGED = "registry_name:changed"
+/** Événement déclenché quand la liste/données des classeurs change */
+export const CLASSEURS_CHANGED = "classeurs:changed"

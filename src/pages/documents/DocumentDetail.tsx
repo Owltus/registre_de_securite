@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
-import type { ChapterRow } from "@/lib/navigation"
+import type { ChapterRow, ClasseurRow } from "@/lib/navigation"
+import { DEFAULT_REGISTRY_NAME, buildEstablishment } from "@/lib/navigation"
 import { PrintPreview } from "@/components/print/PrintPreview"
 import { DocumentPages } from "@/components/print/DocumentPages"
 import { Input } from "@/components/ui/input"
@@ -20,7 +21,7 @@ interface Doc {
 }
 
 export default function DocumentDetail() {
-  const { id, chapterId } = useParams<{ id: string; chapterId: string }>()
+  const { id, chapterId, classeurId } = useParams<{ id: string; chapterId: string; classeurId: string }>()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { update } = useMutation("documents")
@@ -30,11 +31,19 @@ export default function DocumentDetail() {
   const roRef = useRef<ResizeObserver | null>(null)
   const isSyncing = useRef(false)
 
-  const backPath = chapterId ? `/chapitres/${chapterId}` : "/"
+  const backPath = classeurId && chapterId
+    ? `/classeurs/${classeurId}/chapitres/${chapterId}`
+    : chapterId ? `/chapitres/${chapterId}` : "/"
 
   const filters = useMemo(() => ({ id: Number(id) }), [id])
   const { data: docs, loading, refetch } = useQuery<Doc>("documents", filters)
   const doc = docs[0] ?? null
+
+  const classeurFilters = useMemo(() => ({ id: Number(classeurId) }), [classeurId])
+  const { data: classeurRows } = useQuery<ClasseurRow>("classeurs", classeurFilters)
+  const classeurObj = classeurRows[0] ?? null
+  const classeurName = classeurObj?.name ?? DEFAULT_REGISTRY_NAME
+  const establishment = buildEstablishment(classeurObj)
 
   const chapterFilters = useMemo(() => ({ id: Number(chapterId) }), [chapterId])
   const { data: chapterRows } = useQuery<ChapterRow>("chapters", chapterFilters)
@@ -228,6 +237,8 @@ export default function DocumentDetail() {
                 title={editTitle || "Sans titre"}
                 content={debouncedContent}
                 chapterName={chapter?.label}
+                classeurName={classeurName}
+                establishment={establishment}
                 themed
               />
             </div>
@@ -256,6 +267,8 @@ export default function DocumentDetail() {
               title={editTitle || "Sans titre"}
               content={editContent}
               chapterName={chapter?.label}
+              classeurName={classeurName}
+              establishment={establishment}
               themed
             />
           </div>
@@ -268,6 +281,8 @@ export default function DocumentDetail() {
           title={editTitle || "Sans titre"}
           content={editContent}
           chapterName={chapter?.label}
+          classeurName={classeurName}
+          establishment={establishment}
         />
       </PrintPreview>
     </div>

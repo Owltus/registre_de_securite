@@ -18,6 +18,7 @@ interface A4PageProps {
   pageNumber?: number
   totalPages?: number
   chapterName?: string
+  classeurName?: string
   establishment?: string
   /** Utiliser les CSS custom properties du thème (pour l'aperçu éditeur) */
   themed?: boolean
@@ -36,6 +37,7 @@ export function A4Page({
   pageNumber,
   totalPages,
   chapterName,
+  classeurName,
   establishment,
   themed,
 }: A4PageProps) {
@@ -96,6 +98,7 @@ export function A4Page({
       <PageFooter
         establishment={establishment}
         chapterName={chapterName}
+        classeurName={classeurName}
         pageNumber={pageNumber}
         totalPages={totalPages}
         themed={themed}

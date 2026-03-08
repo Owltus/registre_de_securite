@@ -36,7 +36,7 @@ fn resolve_db_path() -> String {
 
     let sqlite_dir = base_dir.join("sqlite");
     std::fs::create_dir_all(&sqlite_dir).expect("impossible de créer le dossier sqlite");
-    let db_path = sqlite_dir.join("registre_securite.db");
+    let db_path = sqlite_dir.join("classeur.db");
     format!("sqlite:{}", db_path.display())
 }
 
@@ -64,6 +64,18 @@ pub fn run() {
                             version: 2,
                             description: "feuilles de signature",
                             sql: include_str!("../sql/v2_signature_sheets.sql"),
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                        },
+                        tauri_plugin_sql::Migration {
+                            version: 3,
+                            description: "support multi-classeurs",
+                            sql: include_str!("../sql/v3_classeurs.sql"),
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                        },
+                        tauri_plugin_sql::Migration {
+                            version: 4,
+                            description: "établissement sur le classeur",
+                            sql: include_str!("../sql/v4_etablissement.sql"),
                             kind: tauri_plugin_sql::MigrationKind::Up,
                         },
                     ],

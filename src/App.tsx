@@ -5,6 +5,7 @@ import { ErrorBoundary } from "@/components/fallback/ErrorBoundary"
 import LoadingSpinner from "@/components/fallback/LoadingSpinner"
 import { RootLayout } from "@/layouts/RootLayout"
 
+const ClasseurListPage = lazy(() => import("@/pages/classeurs/ClasseurListPage"))
 const DashboardPage = lazy(() => import("@/pages/dashboard/DashboardPage"))
 const ChapterPage = lazy(() => import("@/pages/chapter/ChapterPage"))
 const DocumentDetail = lazy(() => import("@/pages/documents/DocumentDetail"))
@@ -20,11 +21,14 @@ function App() {
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
               <Route element={<RootLayout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="chapitres/:chapterId" element={<ChapterPage />} />
-                <Route path="chapitres/:chapterId/documents/:id" element={<DocumentDetail />} />
-                <Route path="chapitres/:chapterId/sheets/:id" element={<TrackingSheetDetail />} />
-                <Route path="chapitres/:chapterId/signatures/:id" element={<SignatureSheetDetail />} />
+                <Route index element={<ClasseurListPage />} />
+                <Route path="classeurs/:classeurId">
+                  <Route index element={<DashboardPage />} />
+                  <Route path="chapitres/:chapterId" element={<ChapterPage />} />
+                  <Route path="chapitres/:chapterId/documents/:id" element={<DocumentDetail />} />
+                  <Route path="chapitres/:chapterId/sheets/:id" element={<TrackingSheetDetail />} />
+                  <Route path="chapitres/:chapterId/signatures/:id" element={<SignatureSheetDetail />} />
+                </Route>
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

@@ -5,6 +5,7 @@ interface TrackingSheetPageProps {
   periodiciteLabel: string
   nombre: number
   chapterName?: string
+  classeurName?: string
   establishment?: string
   themed?: boolean
 }
@@ -18,6 +19,7 @@ export function TrackingSheetPage({
   periodiciteLabel,
   nombre,
   chapterName,
+  classeurName,
   establishment,
   themed,
 }: TrackingSheetPageProps) {
@@ -28,6 +30,7 @@ export function TrackingSheetPage({
       title={title}
       subtitle={periodiciteLabel}
       chapterName={chapterName}
+      classeurName={classeurName}
       establishment={establishment}
       themed={themed}
     >

@@ -12,6 +12,7 @@ interface DocumentPagesProps {
   title: string
   content: string
   chapterName?: string
+  classeurName?: string
   establishment?: string
   /** Masquer la numérotation des pages (pour impression de masse) */
   hidePagination?: boolean
@@ -41,7 +42,7 @@ const markdownComponents = {
  * Phase 1 : mesure dans un conteneur caché → découpage en pages.
  * Phase 2 : rendu du HTML extrait de chaque page dans un <A4Page>.
  */
-export function DocumentPages({ title, content, chapterName, establishment, hidePagination, themed }: DocumentPagesProps) {
+export function DocumentPages({ title, content, chapterName, classeurName, establishment, hidePagination, themed }: DocumentPagesProps) {
   const processedContent = preprocessPageBreaks(content)
   const { pages, measuring, measureRef } = usePagination(processedContent)
 
@@ -77,6 +78,7 @@ export function DocumentPages({ title, content, chapterName, establishment, hide
           pageNumber={hidePagination ? undefined : i + 1}
           totalPages={hidePagination ? undefined : pages.length}
           chapterName={chapterName}
+          classeurName={classeurName}
           establishment={establishment}
           themed={themed}
         >

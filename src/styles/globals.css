@@ -384,6 +384,11 @@
   box-shadow: 0 1px 4px hsl(var(--border) / 0.5);
   border: 1px solid hsl(var(--border));
 }
+/* Neutraliser shadow/border dans les miniatures A4 */
+.a4-miniature .a4-page-themed {
+  box-shadow: none;
+  border: none;
+}
 
 /* ═══════════════════════════════════════════════════════ */
 /* Overrides pdf-prose pour l'aperçu éditeur thématique   */

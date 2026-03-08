@@ -1,0 +1,277 @@
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import * as Dialog from "@radix-ui/react-dialog"
+import { Plus, X, Trash2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { getChapterIcon, type ClasseurRow } from "@/lib/navigation"
+import { useQuery } from "@/lib/hooks/useQuery"
+import { useMutation } from "@/lib/hooks/useMutation"
+import { sqliteAdapter } from "@/lib/db/sqlite"
+import { emit, on, CLASSEURS_CHANGED } from "@/lib/events"
+import { IconPicker } from "@/components/IconPicker"
+
+/** Chapitres par défaut à insérer dans chaque nouveau classeur */
+const DEFAULT_CHAPTERS = [
+  { label: "Informations générales", icon: "Building2", description: "Identité de l'établissement, classement ERP, coordonnées et informations administratives.", sort_order: 1 },
+  { label: "Vérifications périodiques", icon: "ClipboardCheck", description: "Rapports de vérifications techniques réglementaires (électricité, gaz, ascenseurs, etc.).", sort_order: 2 },
+  { label: "Moyens de secours", icon: "ShieldAlert", description: "Inventaire et maintenance des équipements de sécurité (extincteurs, alarmes, désenfumage, etc.).", sort_order: 3 },
+  { label: "Formation du personnel", icon: "GraduationCap", description: "Attestations de formation sécurité incendie, exercices d'évacuation et habilitations.", sort_order: 4 },
+  { label: "Travaux", icon: "Wrench", description: "Suivi des travaux réalisés ou en cours impactant la sécurité de l'établissement.", sort_order: 5 },
+  { label: "Observations", icon: "Eye", description: "Remarques, anomalies constatées et actions correctives à mener.", sort_order: 6 },
+  { label: "Consignes de sécurité", icon: "ScrollText", description: "Consignes générales et particulières de sécurité, plans d'évacuation et procédures.", sort_order: 7 },
+  { label: "Commissions de sécurité", icon: "Users", description: "Procès-verbaux des commissions de sécurité et suivi des prescriptions.", sort_order: 8 },
+]
+
+async function insertDefaultChapters(classeurId: number) {
+  for (const ch of DEFAULT_CHAPTERS) {
+    await sqliteAdapter.insert("chapters", { ...ch, classeur_id: classeurId })
+  }
+}
+
+export default function ClasseurListPage() {
+  const navigate = useNavigate()
+  const { data: classeurs, refetch } = useQuery<ClasseurRow>("classeurs")
+  const { insert, remove } = useMutation("classeurs")
+  useEffect(() => on(CLASSEURS_CHANGED, refetch), [refetch])
+
+  const sortedClasseurs = [...classeurs].sort((a, b) => a.sort_order - b.sort_order)
+
+  // Compteurs de chapitres par classeur
+  const [chapterCounts, setChapterCounts] = useState<Record<number, number>>({})
+  useEffect(() => {
+    if (classeurs.length === 0) return
+    sqliteAdapter
+      .query<{ classeur_id: number; count: number }>(
+        "SELECT classeur_id, COUNT(*) as count FROM chapters GROUP BY classeur_id"
+      )
+      .then((rows) => {
+        const map: Record<number, number> = {}
+        for (const r of rows) map[r.classeur_id] = r.count
+        setChapterCounts(map)
+      })
+  }, [classeurs])
+
+  // Dialog de création
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [newIcon, setNewIcon] = useState("BookOpen")
+  const [newEtablissement, setNewEtablissement] = useState("")
+  const [newComplement, setNewComplement] = useState("")
+  const [useTemplate, setUseTemplate] = useState(true)
+
+  const handleCreate = async () => {
+    const name = newName.trim()
+    if (!name) return
+    const nextOrder = classeurs.length > 0
+      ? Math.max(...classeurs.map((c) => c.sort_order)) + 1
+      : 1
+    const newId = await insert({ name, icon: newIcon, etablissement: newEtablissement.trim(), etablissement_complement: newComplement.trim(), sort_order: nextOrder })
+    if (useTemplate) {
+      await insertDefaultChapters(Number(newId))
+    }
+    emit(CLASSEURS_CHANGED)
+    refetch()
+    setCreateOpen(false)
+    setNewName("")
+    setNewIcon("BookOpen")
+    setNewEtablissement("")
+    setNewComplement("")
+    setUseTemplate(true)
+    navigate(`/classeurs/${newId}`)
+  }
+
+  // Dialog de suppression
+  const [deleteTarget, setDeleteTarget] = useState<ClasseurRow | null>(null)
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    // Suppression en cascade : documents, tracking_sheets, signature_sheets liés aux chapitres du classeur
+    await sqliteAdapter.execute(
+      "DELETE FROM documents WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1)",
+      [deleteTarget.id]
+    )
+    await sqliteAdapter.execute(
+      "DELETE FROM tracking_sheets WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1)",
+      [deleteTarget.id]
+    )
+    await sqliteAdapter.execute(
+      "DELETE FROM signature_sheets WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1)",
+      [deleteTarget.id]
+    )
+    await sqliteAdapter.execute(
+      "DELETE FROM chapters WHERE classeur_id = $1",
+      [deleteTarget.id]
+    )
+    await remove(String(deleteTarget.id))
+    emit(CLASSEURS_CHANGED)
+    refetch()
+    setDeleteTarget(null)
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Top bar */}
+      <div className="flex items-center gap-2 p-2 border-b border-border">
+        <div className="flex-1" />
+        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setCreateOpen(true)} aria-label="Nouveau classeur" title="Nouveau classeur">
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Corps */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="mx-auto max-w-3xl">
+          {sortedClasseurs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center mt-12">
+              Aucun classeur. Créez-en un pour commencer.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sortedClasseurs.map((cl) => {
+                const Icon = getChapterIcon(cl.icon)
+                return (
+                  <button
+                    key={cl.id}
+                    onClick={() => navigate(`/classeurs/${cl.id}`)}
+                    className="group relative flex flex-col items-center gap-3 rounded-lg border bg-card p-6 hover:bg-accent transition-colors text-left"
+                  >
+                    <Icon className="h-8 w-8 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-center">{cl.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {chapterCounts[cl.id] ?? 0} chapitre{(chapterCounts[cl.id] ?? 0) > 1 ? "s" : ""}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(cl) }}
+                      className="absolute top-2 right-2 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Supprimer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Dialog de création */}
+      <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-lg border bg-background shadow-lg rounded-lg flex flex-col overflow-hidden focus:outline-none max-h-[85vh]">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <Dialog.Title className="text-lg font-semibold">
+                Nouveau classeur
+              </Dialog.Title>
+              <Dialog.Close className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Fermer</span>
+              </Dialog.Close>
+            </div>
+
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleCreate() }}
+              className="px-6 py-4 flex flex-col gap-4 overflow-y-auto"
+            >
+              <div className="flex flex-col gap-2">
+                <label htmlFor="classeur-name" className="text-sm font-medium">Nom</label>
+                <Input
+                  id="classeur-name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Nom du classeur"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Icône</label>
+                <IconPicker value={newIcon} onChange={setNewIcon} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label htmlFor="classeur-etablissement" className="text-sm font-medium">Établissement</label>
+                <Input
+                  id="classeur-etablissement"
+                  value={newEtablissement}
+                  onChange={(e) => setNewEtablissement(e.target.value)}
+                  placeholder="Nom de l'établissement"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label htmlFor="classeur-complement" className="text-sm font-medium">Complément</label>
+                <Input
+                  id="classeur-complement"
+                  value={newComplement}
+                  onChange={(e) => setNewComplement(e.target.value)}
+                  placeholder="Précision (optionnel)"
+                />
+              </div>
+
+              <label className="flex items-center gap-3 cursor-pointer rounded-lg border p-3 hover:bg-accent/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={useTemplate}
+                  onChange={(e) => setUseTemplate(e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">Chapitres par défaut</span>
+                  <span className="text-xs text-muted-foreground">
+                    Pré-remplir avec les {DEFAULT_CHAPTERS.length} chapitres du registre de sécurité ERP
+                  </span>
+                </div>
+              </label>
+
+              <div className="flex justify-end gap-2">
+                <Dialog.Close asChild>
+                  <Button type="button" variant="outline">Annuler</Button>
+                </Dialog.Close>
+                <Button type="submit" disabled={!newName.trim()}>Créer</Button>
+              </div>
+            </form>
+
+            <Dialog.Description className="sr-only">
+              Créer un nouveau classeur avec ses chapitres par défaut
+            </Dialog.Description>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Dialog de suppression */}
+      <Dialog.Root open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md border bg-background shadow-lg rounded-lg flex flex-col overflow-hidden focus:outline-none">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <Dialog.Title className="text-lg font-semibold">
+                Supprimer le classeur
+              </Dialog.Title>
+              <Dialog.Close className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Fermer</span>
+              </Dialog.Close>
+            </div>
+
+            <div className="px-6 py-4 flex flex-col gap-4">
+              <p className="text-sm text-muted-foreground">
+                Supprimer le classeur <strong>« {deleteTarget?.name} »</strong> et tout son contenu (chapitres, documents, fiches de suivi et de signature) ? Cette action est irréversible.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+                <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
+              </div>
+            </div>
+
+            <Dialog.Description className="sr-only">
+              Confirmer la suppression du classeur et de tout son contenu
+            </Dialog.Description>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </div>
+  )
+}

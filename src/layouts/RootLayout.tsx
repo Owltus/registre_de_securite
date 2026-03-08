@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react"
-import { Outlet } from "react-router-dom"
-import { Menu, Minus, Square, X } from "lucide-react"
+import { Outlet, useLocation, useNavigate } from "react-router-dom"
+import { Library, Menu, Minus, Square, X } from "lucide-react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Sidebar } from "@/components/Sidebar"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { AppLogo } from "@/components/AppLogo"
-import { DEFAULT_REGISTRY_NAME } from "@/lib/navigation"
-import { usePreference } from "@/lib/hooks/usePreference"
-import { on, REGISTRY_NAME_CHANGED } from "@/lib/events"
+import { getChapterIcon } from "@/lib/navigation"
+import { sqliteAdapter } from "@/lib/db/sqlite"
+import { on, CLASSEURS_CHANGED } from "@/lib/events"
 import { DndProvider } from "@/lib/dnd/DndProvider"
 
 /** Icône « restaurer » Windows : deux carrés superposés */
@@ -31,30 +31,63 @@ function RestoreIcon({ className }: { className?: string }) {
   )
 }
 
+/** Extrait le classeurId depuis le pathname */
+function extractClasseurId(pathname: string): string | null {
+  const match = pathname.match(/\/classeurs\/(\d+)/)
+  return match ? match[1] : null
+}
+
 export function RootLayout() {
+  const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [maximized, setMaximized] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [registryName] = usePreference("registry_name", DEFAULT_REGISTRY_NAME)
-  const [displayName, setDisplayName] = useState(registryName)
+  const location = useLocation()
+  const classeurId = extractClasseurId(location.pathname)
+  const isClasseurList = location.pathname === "/"
+  const [displayName, setDisplayName] = useState("Mes classeurs")
+  const [displayIcon, setDisplayIcon] = useState<string | null>(null)
+  const [displayEtablissement, setDisplayEtablissement] = useState("")
+  const [displayComplement, setDisplayComplement] = useState("")
   const appWindow = getCurrentWindow()
 
-  // Synchroniser displayName quand usePreference charge la valeur initiale
-  useEffect(() => { setDisplayName(registryName) }, [registryName])
-
-  // Écouter les changements de nom depuis le dashboard
-  useEffect(() => on(REGISTRY_NAME_CHANGED, () => {
-    // Re-lire la préférence depuis la DB
-    import("@/lib/db").then(({ getDb }) =>
-      getDb().then(async (db) => {
-        const rows = await db.select<{ value: string }[]>(
-          "SELECT value FROM preferences WHERE key = $1",
-          ["registry_name"]
-        )
-        if (rows.length > 0) setDisplayName(rows[0].value)
+  // Charger le nom et l'icône du classeur actif
+  useEffect(() => {
+    if (!classeurId) {
+      setDisplayName("Mes classeurs")
+      setDisplayIcon(null)
+      setDisplayEtablissement("")
+      setDisplayComplement("")
+      return
+    }
+    sqliteAdapter
+      .get("classeurs", classeurId)
+      .then((row) => {
+        if (row && typeof row === "object" && "name" in row) {
+          const r = row as { name: string; icon?: string; etablissement?: string; etablissement_complement?: string }
+          setDisplayName(r.name)
+          setDisplayIcon(r.icon ?? null)
+          setDisplayEtablissement(r.etablissement ?? "")
+          setDisplayComplement(r.etablissement_complement ?? "")
+        }
       })
-    )
-  }), [])
+  }, [classeurId])
+
+  // Écouter les changements de classeurs
+  useEffect(() => on(CLASSEURS_CHANGED, () => {
+    if (!classeurId) return
+    sqliteAdapter
+      .get("classeurs", classeurId)
+      .then((row) => {
+        if (row && typeof row === "object" && "name" in row) {
+          const r = row as { name: string; icon?: string; etablissement?: string; etablissement_complement?: string }
+          setDisplayName(r.name)
+          setDisplayIcon(r.icon ?? null)
+          setDisplayEtablissement(r.etablissement ?? "")
+          setDisplayComplement(r.etablissement_complement ?? "")
+        }
+      })
+  }), [classeurId])
 
   // Suivre l'état maximisé (couvre bouton, double-clic, Aero Snap, raccourcis)
   useEffect(() => {
@@ -72,25 +105,42 @@ export function RootLayout() {
         data-tauri-drag-region
         className="flex select-none items-center border-b px-4 py-2"
       >
-        {/* Gauche : logo + nom (pointer-events-none pour laisser le drag traverser) */}
-        <div className="pointer-events-none flex items-center gap-2">
-          <AppLogo size={20} />
-          <span className="text-sm font-semibold">{displayName}</span>
-        </div>
+        {/* Gauche : icône classeur + nom — cliquable pour revenir à la liste des classeurs */}
+        {(() => {
+          const ClasseurIcon = displayIcon ? getChapterIcon(displayIcon) : null
+          const subtitle = [displayEtablissement, displayComplement].filter(Boolean).join(" · ")
+          return isClasseurList ? (
+            <div className="pointer-events-none flex items-center gap-2">
+              <Library className="h-5 w-5" />
+              <span className="text-sm font-semibold">Mes classeurs</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 rounded-md px-1 -ml-1 hover:bg-accent transition-colors"
+            >
+              {ClasseurIcon ? <ClasseurIcon className="h-5 w-5" /> : <AppLogo size={20} />}
+              <span className="text-sm font-semibold">{displayName}</span>
+              {subtitle && <span className="text-xs text-muted-foreground">· {subtitle}</span>}
+            </button>
+          )
+        })()}
 
         {/* Droite : hamburger (mobile) + boutons fenêtre */}
         <div className="ml-auto flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setMobileOpen(true)}
-                className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground md:hidden"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Menu</TooltipContent>
-          </Tooltip>
+          {!isClasseurList && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setMobileOpen(true)}
+                  className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground md:hidden"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Menu</TooltipContent>
+            </Tooltip>
+          )}
 
           {/* Boutons de contrôle fenêtre — masqués en mobile */}
           <div className="hidden md:flex items-center gap-1">
@@ -144,16 +194,16 @@ export function RootLayout() {
       <div className="flex flex-1 overflow-hidden">
         {/* DndProvider partagé entre sidebar desktop et contenu */}
         <DndProvider>
-          {/* Sidebar desktop */}
-          <Sidebar onOpenSettings={() => setSettingsOpen(true)} />
+          {/* Sidebar desktop — masquée sur la page liste des classeurs */}
+          {!isClasseurList && <Sidebar onOpenSettings={() => setSettingsOpen(true)} />}
 
           <main className="flex-1 overflow-auto">
             <Outlet />
           </main>
         </DndProvider>
 
-        {/* Sidebar mobile (drawer) — hors du DndProvider, garde son propre DndContext */}
-        <Sidebar mobile open={mobileOpen} onClose={() => setMobileOpen(false)} onOpenSettings={() => setSettingsOpen(true)} />
+        {/* Sidebar mobile (drawer) — masquée sur la page liste des classeurs */}
+        {!isClasseurList && <Sidebar mobile open={mobileOpen} onClose={() => setMobileOpen(false)} onOpenSettings={() => setSettingsOpen(true)} />}
       </div>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />

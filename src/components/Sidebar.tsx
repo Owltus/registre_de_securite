@@ -15,11 +15,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers"
-import * as Dialog from "@radix-ui/react-dialog"
-import { Settings, Plus, X, Home } from "lucide-react"
+import { Settings, Library, Home } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { getChapterIcon, type ChapterRow, type NavItemData } from "@/lib/navigation"
 import { useQuery } from "@/lib/hooks/useQuery"
@@ -28,10 +25,15 @@ import { on, CHAPTERS_CHANGED } from "@/lib/events"
 import { useDndRegistry } from "@/lib/dnd/useDndRegistry"
 import { useLocation } from "react-router-dom"
 import { NavItem } from "./NavItem"
-import { IconPicker } from "./IconPicker"
 
 /** Breakpoint lg Tailwind (1024px) */
 const LG_QUERY = "(min-width: 1024px)"
+
+/** Extrait le classeurId depuis le pathname */
+function extractClasseurId(pathname: string): string | null {
+  const match = pathname.match(/\/classeurs\/(\d+)/)
+  return match ? match[1] : null
+}
 
 interface SidebarProps {
   mobile?: boolean
@@ -43,7 +45,7 @@ interface SidebarProps {
 export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings }: SidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const isHome = location.pathname === "/"
+  const classeurId = extractClasseurId(location.pathname)
 
   // Détecte si la sidebar desktop est étendue (lg+)
   const [isExpanded, setIsExpanded] = useState(() => window.matchMedia(LG_QUERY).matches)
@@ -55,9 +57,13 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
     return () => mq.removeEventListener("change", handler)
   }, [])
 
-  // Chargement des chapitres depuis la DB
-  const { data: chapters, refetch } = useQuery<ChapterRow>("chapters")
-  const { insert, update } = useMutation("chapters")
+  // Chargement des chapitres depuis la DB — filtrés par classeur si on est dans un classeur
+  const chapterFilters = useMemo(
+    () => classeurId ? { classeur_id: Number(classeurId) } : undefined,
+    [classeurId]
+  )
+  const { data: chapters, refetch } = useQuery<ChapterRow>("chapters", chapterFilters)
+  const { update } = useMutation("chapters")
 
   // Rafraîchir quand un autre composant modifie les chapitres
   useEffect(() => on(CHAPTERS_CHANGED, refetch), [refetch])
@@ -81,11 +87,11 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
     () =>
       localOrder.map((ch) => ({
         id: String(ch.id),
-        path: `/chapitres/${ch.id}`,
+        path: classeurId ? `/classeurs/${classeurId}/chapitres/${ch.id}` : `/chapitres/${ch.id}`,
         label: ch.label,
         icon: getChapterIcon(ch.icon),
       })),
-    [localOrder]
+    [localOrder, classeurId]
   )
 
   // --- Drag and drop ---
@@ -119,80 +125,56 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
     [localOrder, update, refetch]
   )
 
-  // Dialog de création
-  const [createOpen, setCreateOpen] = useState(false)
-  const [newLabel, setNewLabel] = useState("")
-  const [newIcon, setNewIcon] = useState("FileText")
-  const [newDescription, setNewDescription] = useState("")
-
-  const handleCreate = async () => {
-    const label = newLabel.trim()
-    if (!label) return
-    const nextOrder = chapters.length > 0
-      ? Math.max(...chapters.map((c) => c.sort_order)) + 1
-      : 1
-    const newId = await insert({
-      label,
-      icon: newIcon,
-      description: newDescription.trim(),
-      sort_order: nextOrder,
-    })
-    refetch()
-    setCreateOpen(false)
-    setNewLabel("")
-    setNewIcon("FileText")
-    setNewDescription("")
-    navigate(`/chapitres/${newId}`)
-  }
-
-  // Bouton "Ajouter un chapitre" — stylisé comme un NavItem
-  const AddChapterButton = ({ responsive }: { responsive?: boolean }) => {
-    const showTooltipAdd = responsive && !isExpanded
+  // Bouton retour vers la liste des classeurs
+  const BackToClasseurs = ({ responsive, onClick: onItemClick }: { responsive?: boolean; onClick?: () => void }) => {
+    const showTooltipBack = responsive && !isExpanded
     return (
-      <Tooltip open={showTooltipAdd ? undefined : false}>
-        <TooltipTrigger asChild>
-          <div>
-            <button
-              onClick={() => setCreateOpen(true)}
-              className={cn(
-                "flex items-center rounded-lg py-2 transition-colors w-full text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                !responsive && "gap-3 px-3"
-              )}
-            >
-              {responsive ? (
-                <span className="flex items-center justify-center w-12 shrink-0">
-                  <Plus className="h-5 w-5" />
-                </span>
-              ) : (
-                <Plus className="h-5 w-5 shrink-0" />
-              )}
-              <span className={cn(
-                "text-sm whitespace-nowrap",
-                responsive && "transition-opacity duration-200",
-                responsive && !isExpanded && "opacity-0"
-              )}>
-                Ajouter
-              </span>
-            </button>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="right">Ajouter un chapitre</TooltipContent>
-      </Tooltip>
-    )
-  }
-
-  // Lien Accueil — stylisé comme un NavItem
-  const HomeLink = ({ responsive, onClick: onItemClick }: { responsive?: boolean; onClick?: () => void }) => {
-    const showTooltipHome = responsive && !isExpanded
-    return (
-      <Tooltip open={showTooltipHome ? undefined : false}>
+      <Tooltip open={showTooltipBack ? undefined : false}>
         <TooltipTrigger asChild>
           <div>
             <button
               onClick={() => { navigate("/"); onItemClick?.() }}
               className={cn(
                 "flex items-center rounded-lg py-2 transition-colors w-full",
-                isHome
+                "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                !responsive && "gap-3 px-3"
+              )}
+            >
+              {responsive ? (
+                <span className="flex items-center justify-center w-12 shrink-0">
+                  <Library className="h-5 w-5" />
+                </span>
+              ) : (
+                <Library className="h-5 w-5 shrink-0" />
+              )}
+              <span className={cn(
+                "text-sm whitespace-nowrap",
+                responsive && "transition-opacity duration-200",
+                responsive && !isExpanded && "opacity-0"
+              )}>
+                Mes classeurs
+              </span>
+            </button>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right">Mes classeurs</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  // Lien Accueil — redirige vers le dashboard du classeur actif
+  const HomeLink = ({ responsive, onClick: onItemClick }: { responsive?: boolean; onClick?: () => void }) => {
+    const isOnDashboard = classeurId !== null && location.pathname === `/classeurs/${classeurId}`
+    const showTooltipHome = responsive && !isExpanded
+    return (
+      <Tooltip open={showTooltipHome ? undefined : false}>
+        <TooltipTrigger asChild>
+          <div>
+            <button
+              onClick={() => { if (classeurId) navigate(`/classeurs/${classeurId}`); onItemClick?.() }}
+              className={cn(
+                "flex items-center rounded-lg py-2 transition-colors w-full",
+                isOnDashboard
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                 !responsive && "gap-3 px-3"
@@ -260,80 +242,8 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
     </DndContext>
   )
 
-  // Dialog de création (partagé entre mobile et desktop)
-  const CreateDialog = (
-    <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-lg border bg-background shadow-lg rounded-lg flex flex-col overflow-hidden focus:outline-none max-h-[85vh]">
-          <div className="flex items-center justify-between border-b px-6 py-4">
-            <Dialog.Title className="text-lg font-semibold">
-              Nouveau chapitre
-            </Dialog.Title>
-            <Dialog.Close className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-              <X className="h-4 w-4" />
-              <span className="sr-only">Fermer</span>
-            </Dialog.Close>
-          </div>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              handleCreate()
-            }}
-            className="px-6 py-4 flex flex-col gap-4 overflow-y-auto"
-          >
-            <div className="flex flex-col gap-2">
-              <label htmlFor="chapter-label" className="text-sm font-medium">
-                Nom
-              </label>
-              <Input
-                id="chapter-label"
-                value={newLabel}
-                onChange={(e) => setNewLabel(e.target.value)}
-                placeholder="Nom du chapitre"
-                autoFocus
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Icône
-              </label>
-              <IconPicker value={newIcon} onChange={setNewIcon} />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor="chapter-desc" className="text-sm font-medium">
-                Description
-              </label>
-              <Input
-                id="chapter-desc"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Description (optionnel)"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Dialog.Close asChild>
-                <Button type="button" variant="outline">
-                  Annuler
-                </Button>
-              </Dialog.Close>
-              <Button type="submit" disabled={!newLabel.trim()}>
-                Créer
-              </Button>
-            </div>
-          </form>
-
-          <Dialog.Description className="sr-only">
-            Saisir les informations du nouveau chapitre
-          </Dialog.Description>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  )
+  // Si on est sur la page d'accueil (liste des classeurs), pas de chapitres à afficher
+  const showChapters = classeurId !== null
 
   // --- Version mobile : drawer + overlay ---
   if (mobile) {
@@ -354,14 +264,16 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
         >
           <div className="border-b p-2 flex flex-col gap-1">
             <HomeLink onClick={onClose} />
-            <AddChapterButton />
           </div>
 
-          <nav className="flex-1 flex flex-col gap-1 p-2 overflow-y-auto">
-            <MobileChapterList onItemClick={onClose} />
-          </nav>
+          {showChapters && (
+            <nav className="flex-1 flex flex-col gap-1 p-2 overflow-y-auto">
+              <MobileChapterList onItemClick={onClose} />
+            </nav>
+          )}
 
           <div className="mt-auto border-t p-2 flex flex-col gap-1">
+            <BackToClasseurs onClick={onClose} />
             <button
               onClick={() => { onOpenSettings?.(); onClose?.() }}
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full"
@@ -371,8 +283,6 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
             </button>
           </div>
         </aside>
-
-        {CreateDialog}
       </>
     )
   }
@@ -390,14 +300,16 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
       >
         <div className="border-b p-2 flex flex-col gap-1">
           <HomeLink responsive />
-          <AddChapterButton responsive />
         </div>
 
-        <nav className="flex-1 flex flex-col gap-1 p-2 overflow-y-auto">
-          <DesktopChapterList responsive />
-        </nav>
+        {showChapters && (
+          <nav className="flex-1 flex flex-col gap-1 p-2 overflow-y-auto">
+            <DesktopChapterList responsive />
+          </nav>
+        )}
 
         <div className="mt-auto border-t p-2 flex flex-col gap-1">
+          <BackToClasseurs responsive />
           <Tooltip open={showTooltip ? undefined : false}>
             <TooltipTrigger asChild>
               <div>
@@ -421,8 +333,6 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
           </Tooltip>
         </div>
       </aside>
-
-      {CreateDialog}
     </>
   )
 }
