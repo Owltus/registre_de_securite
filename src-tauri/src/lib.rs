@@ -84,6 +84,12 @@ pub fn run() {
                             sql: include_str!("../sql/v5_description.sql"),
                             kind: tauri_plugin_sql::MigrationKind::Up,
                         },
+                        tauri_plugin_sql::Migration {
+                            version: 6,
+                            description: "ajout périodicité quadriennal et colonne de tri",
+                            sql: include_str!("../sql/v6_quadriennal.sql"),
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                        },
                     ],
                 )
                 .build(),

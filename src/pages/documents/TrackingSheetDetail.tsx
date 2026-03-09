@@ -31,6 +31,7 @@ interface Periodicite {
   id: number
   label: string
   nombre: number
+  sort_order: number
 }
 
 // Taille native de la page A4 en px

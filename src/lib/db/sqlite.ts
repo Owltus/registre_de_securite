@@ -13,12 +13,12 @@ export const sqliteAdapter: DataAdapter = {
   async getAll(table, filters) {
     const db = await getDb()
     if (!filters || Object.keys(filters).length === 0) {
-      return db.select(`SELECT * FROM ${table}`)
+      return db.select(`SELECT * FROM ${table} ORDER BY sort_order`)
     }
     const keys = Object.keys(filters)
     const where = keys.map((k, i) => `${k} = $${i + 1}`).join(" AND ")
     const values = keys.map((k) => filters[k])
-    return db.select(`SELECT * FROM ${table} WHERE ${where}`, values)
+    return db.select(`SELECT * FROM ${table} WHERE ${where} ORDER BY sort_order`, values)
   },
 
   async insert(table, data) {

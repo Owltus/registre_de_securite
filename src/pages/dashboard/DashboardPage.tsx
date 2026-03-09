@@ -90,7 +90,7 @@ export default function DashboardPage() {
       sqliteAdapter.query<Doc>(`SELECT * FROM documents WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
       sqliteAdapter.query<TrackingSheet>(`SELECT * FROM tracking_sheets WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
       sqliteAdapter.query<SignatureSheet>(`SELECT * FROM signature_sheets WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
-      sqliteAdapter.query<Periodicite>("SELECT * FROM periodicites"),
+      sqliteAdapter.query<Periodicite>("SELECT * FROM periodicites ORDER BY sort_order"),
     ]).then(([docs, sheets, sigs, perios]) => {
       setAllDocs(docs)
       setAllTrackingSheets(sheets)

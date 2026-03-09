@@ -15,6 +15,7 @@ export interface Periodicite {
   id: number
   label: string
   nombre: number
+  sort_order: number
 }
 
 export interface TrackingSheet {
