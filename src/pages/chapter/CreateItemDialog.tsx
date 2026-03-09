@@ -10,10 +10,10 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { useQuery } from "@/lib/hooks/useQuery"
-import { X, ArrowLeft, FileText, Columns3, PenLine } from "lucide-react"
+import { X, ArrowLeft, FileText, Columns3, PenLine, BookMarked } from "lucide-react"
 import type { Periodicite } from "./types"
 
-type ItemType = "document" | "tracking_sheet" | "signature_sheet"
+type ItemType = "document" | "tracking_sheet" | "signature_sheet" | "intercalaire"
 type Step = "choose" | "form"
 
 interface CreateItemDialogProps {
@@ -22,6 +22,7 @@ interface CreateItemDialogProps {
   onCreateDocument: (title: string, description: string) => void
   onCreateTrackingSheet: (title: string, periodiciteId: number) => void
   onCreateSignatureSheet: (title: string, description: string) => void
+  onCreateIntercalaire: (title: string, description: string) => void
 }
 
 export function CreateItemDialog({
@@ -30,6 +31,7 @@ export function CreateItemDialog({
   onCreateDocument,
   onCreateTrackingSheet,
   onCreateSignatureSheet,
+  onCreateIntercalaire,
 }: CreateItemDialogProps) {
   const [step, setStep] = useState<Step>("choose")
   const [itemType, setItemType] = useState<ItemType>("document")
@@ -58,8 +60,10 @@ export function CreateItemDialog({
       const pId = Number(periodiciteId)
       if (!pId) return
       onCreateTrackingSheet(title.trim() || "Sans titre", pId)
-    } else {
+    } else if (itemType === "signature_sheet") {
       onCreateSignatureSheet(title.trim() || "Sans titre", description.trim())
+    } else {
+      onCreateIntercalaire(title.trim() || "Sans titre", description.trim())
     }
     reset()
   }
@@ -71,7 +75,9 @@ export function CreateItemDialog({
         ? "Nouveau document"
         : itemType === "tracking_sheet"
           ? "Nouvelle feuille de suivi"
-          : "Nouvelle feuille de signature"
+        : itemType === "signature_sheet"
+          ? "Nouvelle feuille de signature"
+          : "Nouvel intercalaire"
 
   return (
     <Dialog.Root
@@ -154,6 +160,22 @@ export function CreateItemDialog({
                   </p>
                 </div>
               </button>
+
+              <button
+                type="button"
+                onClick={() => handleChoose("intercalaire")}
+                className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 text-left hover:border-primary/50 hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-accent-foreground shrink-0">
+                  <BookMarked className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Intercalaire</p>
+                  <p className="text-xs text-muted-foreground">
+                    Intercalaire à placer devant des documents externes
+                  </p>
+                </div>
+              </button>
             </div>
           ) : (
             <form
@@ -176,14 +198,16 @@ export function CreateItemDialog({
                       ? "Titre du document"
                       : itemType === "tracking_sheet"
                         ? "Titre de la feuille de suivi"
-                        : "Titre de la feuille de signature"
+                        : itemType === "signature_sheet"
+                          ? "Titre de la feuille de signature"
+                          : "Titre de l'intercalaire"
                   }
                   autoFocus
                   onFocus={(e) => e.target.select()}
                 />
               </div>
 
-              {(itemType === "document" || itemType === "signature_sheet") && (
+              {(itemType === "document" || itemType === "signature_sheet" || itemType === "intercalaire") && (
                 <div className="flex flex-col gap-2">
                   <label htmlFor="create-description" className="text-sm font-medium">
                     Description

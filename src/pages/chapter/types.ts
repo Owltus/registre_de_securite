@@ -39,10 +39,21 @@ export interface SignatureSheet {
   updated_at: string
 }
 
+export interface Intercalaire {
+  id: number
+  title: string
+  description: string
+  chapter_id: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export type ChapterItem =
   | { kind: "document"; data: Doc }
   | { kind: "tracking_sheet"; data: TrackingSheet }
   | { kind: "signature_sheet"; data: SignatureSheet }
+  | { kind: "intercalaire"; data: Intercalaire }
 
 /** Calcule le statut d'un chapitre selon le nombre de documents */
 export function computeStatus(docCount: number): ChapterStatus {

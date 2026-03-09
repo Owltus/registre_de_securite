@@ -9,17 +9,19 @@ import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
 import type { ChapterRow, ClasseurRow } from "@/lib/navigation"
 import { DEFAULT_REGISTRY_NAME, buildEstablishment } from "@/lib/navigation"
-import { useDndRegistry, type DocumentDragData, type TrackingSheetDragData, type SignatureSheetDragData } from "@/lib/dnd/useDndRegistry"
+import { useDndRegistry, type DocumentDragData, type TrackingSheetDragData, type SignatureSheetDragData, type IntercalaireDragData } from "@/lib/dnd/useDndRegistry"
 import { PrintPreview } from "@/components/print/PrintPreview"
 import { DocumentPages } from "@/components/print/DocumentPages"
 import { TrackingSheetPage } from "@/components/print/TrackingSheetPage"
 import { SignatureSheetPage } from "@/components/print/SignatureSheetPage"
+import { IntercalaireSheet } from "@/components/print/IntercalaireSheet"
 import { CoverPage } from "@/components/print/CoverPage"
 import { Button } from "@/components/ui/button"
 import { Plus, FileText, Pencil, Printer } from "lucide-react"
-import type { Doc, TrackingSheet, SignatureSheet, Periodicite, ChapterItem } from "./types"
+import type { Doc, TrackingSheet, SignatureSheet, Intercalaire, Periodicite, ChapterItem } from "./types"
 import { DocumentCard } from "./DocumentCard"
 import { TrackingSheetCard } from "./TrackingSheetCard"
+import { IntercalaireCard } from "./IntercalaireCard"
 import { CreateItemDialog } from "./CreateItemDialog"
 import { DeleteDocumentDialog } from "./DeleteDocumentDialog"
 import { DeleteTrackingSheetDialog } from "./DeleteTrackingSheetDialog"
@@ -28,6 +30,8 @@ import { SignatureSheetCard } from "./SignatureSheetCard"
 import { EditDocumentDialog } from "./EditDocumentDialog"
 import { EditSignatureSheetDialog } from "./EditSignatureSheetDialog"
 import { DeleteSignatureSheetDialog } from "./DeleteSignatureSheetDialog"
+import { EditIntercalaireDialog } from "./EditIntercalaireDialog"
+import { DeleteIntercalaireDialog } from "./DeleteIntercalaireDialog"
 import { EditChapterDialog } from "./EditChapterDialog"
 import { useDropZone, DropOverlay } from "./DropZone"
 import { emit, CHAPTERS_CHANGED } from "@/lib/events"
@@ -62,15 +66,20 @@ export default function ChapterPage() {
   const { data: signatureSheets, loading: ssLoading, refetch: ssRefetch } = useQuery<SignatureSheet>("signature_sheets", filters)
   const { insert: insertSs, update: updateSs, remove: removeSs } = useMutation("signature_sheets")
 
+  // Intercalaires
+  const { data: intercalaires, loading: gpLoading, refetch: gpRefetch } = useQuery<Intercalaire>("intercalaires", filters)
+  const { insert: insertGp, update: updateGp, remove: removeGp } = useMutation("intercalaires")
+
   // Liste unifiée triée par sort_order
   const allItems: ChapterItem[] = useMemo(() => {
     const items: ChapterItem[] = [
       ...docs.map(d => ({ kind: "document" as const, data: d })),
       ...trackingSheets.map(s => ({ kind: "tracking_sheet" as const, data: s })),
       ...signatureSheets.map(s => ({ kind: "signature_sheet" as const, data: s })),
+      ...intercalaires.map(g => ({ kind: "intercalaire" as const, data: g })),
     ]
     return items.sort((a, b) => a.data.sort_order - b.data.sort_order)
-  }, [docs, trackingSheets, signatureSheets])
+  }, [docs, trackingSheets, signatureSheets, intercalaires])
 
   // État local optimiste pour le réordonnancement
   const [localItems, setLocalItems] = useState<ChapterItem[]>([])
@@ -78,9 +87,12 @@ export default function ChapterPage() {
 
   // IDs pour le SortableContext (préfixés selon le type)
   const sortableIds = useMemo(
-    () => localItems.map((item) =>
-      item.kind === "document" ? `document-${item.data.id}` : item.kind === "tracking_sheet" ? `sheet-${item.data.id}` : `sig-${item.data.id}`
-    ),
+    () => localItems.map((item) => {
+      if (item.kind === "document") return `document-${item.data.id}`
+      if (item.kind === "tracking_sheet") return `sheet-${item.data.id}`
+      if (item.kind === "signature_sheet") return `sig-${item.data.id}`
+      return `int-${item.data.id}`
+    }),
     [localItems]
   )
 
@@ -94,6 +106,7 @@ export default function ChapterPage() {
     | { type: "document"; doc: Doc }
     | { type: "tracking_sheet"; sheet: TrackingSheet; periodiciteLabel: string; nombre: number }
     | { type: "signature_sheet"; sheet: SignatureSheet }
+    | { type: "intercalaire"; page: Intercalaire }
     | { type: "all" }
     | null
   const [printPreview, setPrintPreview] = useState<PrintPreviewState>(null)
@@ -105,6 +118,10 @@ export default function ChapterPage() {
   // États feuilles de signature
   const [editSigSheet, setEditSigSheet] = useState<SignatureSheet | null>(null)
   const [deleteSigSheet, setDeleteSigSheet] = useState<SignatureSheet | null>(null)
+
+  // États intercalaires
+  const [editIntercalaire, setEditIntercalaire] = useState<Intercalaire | null>(null)
+  const [deleteIntercalaire, setDeleteIntercalaire] = useState<Intercalaire | null>(null)
 
   // Drag-and-drop fichiers (import)
   const handleImport = useCallback(async (files: { title: string; content: string }[]) => {
@@ -128,7 +145,7 @@ export default function ChapterPage() {
       const { active, over } = event
       if (!over || active.id === over.id) return
 
-      const data = active.data.current as (DocumentDragData | TrackingSheetDragData | SignatureSheetDragData) | undefined
+      const data = active.data.current as (DocumentDragData | TrackingSheetDragData | SignatureSheetDragData | IntercalaireDragData) | undefined
       if (!data) return
 
       const overData = over.data.current as { type?: string; chapterId?: string } | undefined
@@ -145,20 +162,27 @@ export default function ChapterPage() {
         } else if (data.type === "tracking_sheet") {
           await updateTs(String(data.sheetId), { chapter_id: targetChapterId })
           tsRefetch()
-        } else {
+        } else if (data.type === "signature_sheet") {
           await updateSs(String(data.sheetId), { chapter_id: targetChapterId })
           ssRefetch()
+        } else {
+          await updateGp(String(data.pageId), { chapter_id: targetChapterId })
+          gpRefetch()
         }
         return
       }
 
       // Cas 2 : drop sur un autre item → réordonner
       const overType = overData?.type
-      if (overType === "document" || overType === "tracking_sheet" || overType === "signature_sheet") {
+      if (overType === "document" || overType === "tracking_sheet" || overType === "signature_sheet" || overType === "intercalaire") {
         const activeId = String(active.id)
         const overId = String(over.id)
-        const itemSortId = (item: ChapterItem) =>
-          item.kind === "document" ? `document-${item.data.id}` : item.kind === "tracking_sheet" ? `sheet-${item.data.id}` : `sig-${item.data.id}`
+        const itemSortId = (item: ChapterItem) => {
+          if (item.kind === "document") return `document-${item.data.id}`
+          if (item.kind === "tracking_sheet") return `sheet-${item.data.id}`
+          if (item.kind === "signature_sheet") return `sig-${item.data.id}`
+          return `int-${item.data.id}`
+        }
         const oldIndex = localItems.findIndex((item) => itemSortId(item) === activeId)
         const newIndex = localItems.findIndex((item) => itemSortId(item) === overId)
         if (oldIndex === -1 || newIndex === -1) return
@@ -176,27 +200,32 @@ export default function ChapterPage() {
               return updateDoc(String(item.data.id), { sort_order: i + 1 })
             } else if (item.kind === "tracking_sheet") {
               return updateTs(String(item.data.id), { sort_order: i + 1 })
-            } else {
+            } else if (item.kind === "signature_sheet") {
               return updateSs(String(item.data.id), { sort_order: i + 1 })
+            } else {
+              return updateGp(String(item.data.id), { sort_order: i + 1 })
             }
           })
         )
         refetch()
         tsRefetch()
         ssRefetch()
+        gpRefetch()
       }
     },
-    [localItems, updateDoc, updateTs, updateSs, refetch, tsRefetch, ssRefetch]
+    [localItems, updateDoc, updateTs, updateSs, updateGp, refetch, tsRefetch, ssRefetch, gpRefetch]
   )
 
   useEffect(() => {
     dndRegistry.registerHandler("document", handleItemDrop)
     dndRegistry.registerHandler("tracking_sheet", handleItemDrop)
     dndRegistry.registerHandler("signature_sheet", handleItemDrop)
+    dndRegistry.registerHandler("intercalaire", handleItemDrop)
     return () => {
       dndRegistry.unregisterHandler("document")
       dndRegistry.unregisterHandler("tracking_sheet")
       dndRegistry.unregisterHandler("signature_sheet")
+      dndRegistry.unregisterHandler("intercalaire")
     }
   }, [dndRegistry, handleItemDrop])
 
@@ -316,6 +345,47 @@ export default function ChapterPage() {
     setDeleteSigSheet(null)
   }, [deleteSigSheet, removeSs, ssRefetch])
 
+  // Création intercalaire
+  const handleCreateIntercalaire = useCallback(async (title: string, description: string) => {
+    const nextOrder = localItems.length > 0
+      ? Math.max(...localItems.map((item) => item.data.sort_order)) + 1
+      : 1
+    await insertGp({ title, description, chapter_id: chapterId ?? "", sort_order: nextOrder })
+    gpRefetch()
+    setCreateOpen(false)
+  }, [insertGp, chapterId, gpRefetch, localItems])
+
+  // Export PDF intercalaire
+  const handleGpExport = useCallback((e: React.MouseEvent, page: Intercalaire) => {
+    e.stopPropagation()
+    setPrintPreview({ type: "intercalaire", page })
+  }, [])
+
+  // Édition intercalaire
+  const handleGpEditClick = useCallback((e: React.MouseEvent, page: Intercalaire) => {
+    e.stopPropagation()
+    setEditIntercalaire(page)
+  }, [])
+
+  const handleGpEditSave = useCallback(async (id: number, title: string, description: string) => {
+    await updateGp(String(id), { title, description })
+    gpRefetch()
+    setEditIntercalaire(null)
+  }, [updateGp, gpRefetch])
+
+  // Suppression intercalaire
+  const handleGpDeleteClick = useCallback((e: React.MouseEvent, page: Intercalaire) => {
+    e.stopPropagation()
+    setDeleteIntercalaire(page)
+  }, [])
+
+  const handleGpDeleteConfirm = useCallback(async () => {
+    if (!deleteIntercalaire) return
+    await removeGp(String(deleteIntercalaire.id))
+    gpRefetch()
+    setDeleteIntercalaire(null)
+  }, [deleteIntercalaire, removeGp, gpRefetch])
+
   // Édition du chapitre
   const handleChapterSave = useCallback(async (label: string, description: string, icon: string) => {
     if (!chapterId) return
@@ -389,7 +459,7 @@ export default function ChapterPage() {
         <div className="relative flex-1 rounded-lg flex flex-col">
           {isDragOver && <DropOverlay />}
 
-          {loading || tsLoading || ssLoading ? (
+          {loading || tsLoading || ssLoading || gpLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
             </div>
@@ -430,7 +500,7 @@ export default function ChapterPage() {
                       onEdit={handleTsEditClick}
                       onDelete={handleTsDeleteClick}
                     />
-                  ) : (
+                  ) : item.kind === "signature_sheet" ? (
                     <SignatureSheetCard
                       key={`sig-${item.data.id}`}
                       sheet={item.data as SignatureSheet}
@@ -442,6 +512,19 @@ export default function ChapterPage() {
                       onExport={handleSsExport}
                       onEdit={handleSsEditClick}
                       onDelete={handleSsDeleteClick}
+                    />
+                  ) : (
+                    <IntercalaireCard
+                      key={`int-${item.data.id}`}
+                      page={item.data as Intercalaire}
+                      chapterId={chapterId!}
+                      classeurId={classeurId}
+                      chapterName={chapter?.label}
+                      classeurName={classeurName}
+                      establishment={establishment}
+                      onExport={handleGpExport}
+                      onEdit={handleGpEditClick}
+                      onDelete={handleGpDeleteClick}
                     />
                   )
                 )}
@@ -484,10 +567,20 @@ export default function ChapterPage() {
             establishment={establishment}
           />
         )}
+        {printPreview?.type === "intercalaire" && (
+          <IntercalaireSheet
+            title={printPreview.page.title || "Sans titre"}
+            description={printPreview.page.description ?? ""}
+            chapterName={chapter?.label}
+            classeurName={classeurName}
+            establishment={establishment}
+          />
+        )}
         {printPreview?.type === "all" && (
           <CoverPage
             chapterLabel={chapter?.label ?? ""}
             chapterDescription={chapter?.description}
+            chapterIcon={chapter?.icon}
             classeurName={classeurName}
           />
         )}
@@ -512,12 +605,21 @@ export default function ChapterPage() {
               classeurName={classeurName}
               establishment={establishment}
             />
-          ) : (
+          ) : item.kind === "signature_sheet" ? (
             <SignatureSheetPage
               key={`sig-${item.data.id}`}
               title={item.data.title || "Sans titre"}
               subtitle={(item.data as SignatureSheet).description ?? ""}
               nombre={(item.data as SignatureSheet).nombre}
+              chapterName={chapter?.label}
+              classeurName={classeurName}
+              establishment={establishment}
+            />
+          ) : (
+            <IntercalaireSheet
+              key={`int-${item.data.id}`}
+              title={item.data.title || "Sans titre"}
+              description={(item.data as Intercalaire).description ?? ""}
               chapterName={chapter?.label}
               classeurName={classeurName}
               establishment={establishment}
@@ -532,6 +634,7 @@ export default function ChapterPage() {
         onCreateDocument={handleCreate}
         onCreateTrackingSheet={handleCreateTrackingSheet}
         onCreateSignatureSheet={handleCreateSignatureSheet}
+        onCreateIntercalaire={handleCreateIntercalaire}
       />
 
       <EditDocumentDialog
@@ -568,6 +671,18 @@ export default function ChapterPage() {
         sheet={deleteSigSheet}
         onClose={() => setDeleteSigSheet(null)}
         onConfirm={handleSsDeleteConfirm}
+      />
+
+      <EditIntercalaireDialog
+        page={editIntercalaire}
+        onClose={() => setEditIntercalaire(null)}
+        onSave={handleGpEditSave}
+      />
+
+      <DeleteIntercalaireDialog
+        page={deleteIntercalaire}
+        onClose={() => setDeleteIntercalaire(null)}
+        onConfirm={handleGpDeleteConfirm}
       />
 
       <EditChapterDialog

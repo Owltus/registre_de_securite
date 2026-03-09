@@ -90,6 +90,18 @@ pub fn run() {
                             sql: include_str!("../sql/v6_quadriennal.sql"),
                             kind: tauri_plugin_sql::MigrationKind::Up,
                         },
+                        tauri_plugin_sql::Migration {
+                            version: 7,
+                            description: "pages de garde (intercalaires)",
+                            sql: include_str!("../sql/v7_garde_pages.sql"),
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                        },
+                        tauri_plugin_sql::Migration {
+                            version: 8,
+                            description: "renommage garde_pages en intercalaires",
+                            sql: include_str!("../sql/v8_rename_intercalaires.sql"),
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                        },
                     ],
                 )
                 .build(),

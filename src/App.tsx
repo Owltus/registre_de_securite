@@ -11,6 +11,7 @@ const ChapterPage = lazy(() => import("@/pages/chapter/ChapterPage"))
 const DocumentDetail = lazy(() => import("@/pages/documents/DocumentDetail"))
 const TrackingSheetDetail = lazy(() => import("@/pages/documents/TrackingSheetDetail"))
 const SignatureSheetDetail = lazy(() => import("@/pages/documents/SignatureSheetDetail"))
+const IntercalaireDetail = lazy(() => import("@/pages/documents/IntercalaireDetail"))
 const NotFound = lazy(() => import("@/components/fallback/NotFound"))
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
                   <Route path="chapitres/:chapterId/documents/:id" element={<DocumentDetail />} />
                   <Route path="chapitres/:chapterId/sheets/:id" element={<TrackingSheetDetail />} />
                   <Route path="chapitres/:chapterId/signatures/:id" element={<SignatureSheetDetail />} />
+                  <Route path="chapitres/:chapterId/intercalaires/:id" element={<IntercalaireDetail />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Route>

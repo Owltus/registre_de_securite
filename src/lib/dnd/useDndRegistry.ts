@@ -29,7 +29,14 @@ export interface SignatureSheetDragData {
   sourceChapterId: string
 }
 
-export type DragData = ChapterDragData | DocumentDragData | TrackingSheetDragData | SignatureSheetDragData
+export interface IntercalaireDragData {
+  type: "intercalaire"
+  pageId: number
+  pageTitle: string
+  sourceChapterId: string
+}
+
+export type DragData = ChapterDragData | DocumentDragData | TrackingSheetDragData | SignatureSheetDragData | IntercalaireDragData
 
 export type DragHandler = (event: DragEndEvent) => void
 

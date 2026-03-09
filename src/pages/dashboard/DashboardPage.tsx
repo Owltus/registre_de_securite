@@ -17,7 +17,8 @@ import { CoverPage } from "@/components/print/CoverPage"
 import { DocumentPages } from "@/components/print/DocumentPages"
 import { TrackingSheetPage } from "@/components/print/TrackingSheetPage"
 import { SignatureSheetPage } from "@/components/print/SignatureSheetPage"
-import type { Doc, TrackingSheet, SignatureSheet, Periodicite } from "@/pages/chapter/types"
+import { IntercalaireSheet } from "@/components/print/IntercalaireSheet"
+import type { Doc, TrackingSheet, SignatureSheet, Intercalaire, Periodicite } from "@/pages/chapter/types"
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -80,6 +81,7 @@ export default function DashboardPage() {
   const [allDocs, setAllDocs] = useState<Doc[]>([])
   const [allTrackingSheets, setAllTrackingSheets] = useState<TrackingSheet[]>([])
   const [allSignatureSheets, setAllSignatureSheets] = useState<SignatureSheet[]>([])
+  const [allIntercalaires, setAllIntercalaires] = useState<Intercalaire[]>([])
   const [periodicites, setPeriodicites] = useState<Periodicite[]>([])
 
   // Charger les contenus au montage pour le sommaire
@@ -90,11 +92,13 @@ export default function DashboardPage() {
       sqliteAdapter.query<Doc>(`SELECT * FROM documents WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
       sqliteAdapter.query<TrackingSheet>(`SELECT * FROM tracking_sheets WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
       sqliteAdapter.query<SignatureSheet>(`SELECT * FROM signature_sheets WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
+      sqliteAdapter.query<Intercalaire>(`SELECT * FROM intercalaires WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
       sqliteAdapter.query<Periodicite>("SELECT * FROM periodicites ORDER BY sort_order"),
-    ]).then(([docs, sheets, sigs, perios]) => {
+    ]).then(([docs, sheets, sigs, gardes, perios]) => {
       setAllDocs(docs)
       setAllTrackingSheets(sheets)
       setAllSignatureSheets(sigs)
+      setAllIntercalaires(gardes)
       setPeriodicites(perios)
     })
   }, [chapters, classeurId])
@@ -126,6 +130,7 @@ export default function DashboardPage() {
     const chDocs = allDocs.filter((d) => String(d.chapter_id) === String(ch.id))
     const chSheets = allTrackingSheets.filter((s) => String(s.chapter_id) === String(ch.id))
     const chSigs = allSignatureSheets.filter((s) => String(s.chapter_id) === String(ch.id))
+    const chGardes = allIntercalaires.filter((g) => String(g.chapter_id) === String(ch.id))
     return {
       chapter: ch,
       number: i + 1,
@@ -133,6 +138,7 @@ export default function DashboardPage() {
         ...chDocs.map((d) => d.title || "Sans titre"),
         ...chSheets.map((s) => s.title || "Sans titre"),
         ...chSigs.map((s) => s.title || "Sans titre"),
+        ...chGardes.map((g) => g.title || "Sans titre"),
       ],
     }
   })
@@ -227,12 +233,13 @@ export default function DashboardPage() {
           const chDocs = allDocs.filter((d) => String(d.chapter_id) === String(ch.id))
           const chSheets = allTrackingSheets.filter((s) => String(s.chapter_id) === String(ch.id))
           const chSigs = allSignatureSheets.filter((s) => String(s.chapter_id) === String(ch.id))
+          const chGardes = allIntercalaires.filter((g) => String(g.chapter_id) === String(ch.id))
 
-          if (chDocs.length === 0 && chSheets.length === 0 && chSigs.length === 0) return null
+          if (chDocs.length === 0 && chSheets.length === 0 && chSigs.length === 0 && chGardes.length === 0) return null
 
           return (
             <Fragment key={ch.id}>
-              <CoverPage chapterLabel={ch.label} chapterDescription={ch.description} classeurName={classeurName} />
+              <CoverPage chapterLabel={ch.label} chapterDescription={ch.description} chapterIcon={ch.icon} classeurName={classeurName} />
               {chDocs.map((doc) => (
                 <DocumentPages
                   key={`doc-${doc.id}`}
@@ -264,6 +271,16 @@ export default function DashboardPage() {
                   title={sig.title || "Sans titre"}
                   subtitle={sig.description ?? ""}
                   nombre={sig.nombre}
+                  chapterName={ch.label}
+                  classeurName={classeurName}
+                  establishment={establishment}
+                />
+              ))}
+              {chGardes.map((gp) => (
+                <IntercalaireSheet
+                  key={`gp-${gp.id}`}
+                  title={gp.title || "Sans titre"}
+                  description={gp.description}
                   chapterName={ch.label}
                   classeurName={classeurName}
                   establishment={establishment}
