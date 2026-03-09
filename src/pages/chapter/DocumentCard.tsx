@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { Button } from "@/components/ui/button"
 import { Trash2, FileDown, FileText, Pencil, FileOutput } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { DocumentPages } from "@/components/print/DocumentPages"
 import type { Doc } from "./types"
 import type { DocumentDragData } from "@/lib/dnd/useDndRegistry"
@@ -96,18 +97,38 @@ export function DocumentCard({ doc, chapterId, classeurId, chapterName, classeur
         {/* Actions en surimpression, bas centré */}
         <div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="flex items-center gap-1 rounded-md bg-background/90 border border-border shadow-sm px-1 py-0.5">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport(e, doc)} aria-label="Exporter PDF">
-              <FileDown className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExportMd} aria-label="Exporter Markdown">
-              <FileOutput className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit(e, doc)} aria-label="Modifier">
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete(e, doc)} aria-label="Supprimer">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport(e, doc)} aria-label="Exporter PDF">
+                  <FileDown className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Exporter PDF</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExportMd} aria-label="Exporter Markdown">
+                  <FileOutput className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Exporter Markdown</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit(e, doc)} aria-label="Modifier">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Modifier</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete(e, doc)} aria-label="Supprimer">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Supprimer</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>

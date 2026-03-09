@@ -17,6 +17,7 @@ import { SignatureSheetPage } from "@/components/print/SignatureSheetPage"
 import { IntercalaireSheet } from "@/components/print/IntercalaireSheet"
 import { CoverPage } from "@/components/print/CoverPage"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Plus, FileText, Pencil, Printer } from "lucide-react"
 import type { Doc, TrackingSheet, SignatureSheet, Intercalaire, Periodicite, ChapterItem } from "./types"
 import { DocumentCard } from "./DocumentCard"
@@ -440,15 +441,30 @@ export default function ChapterPage() {
           {chapter.description || chapter.label}
         </span>
 
-        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setPrintPreview({ type: "all" })} aria-label="Tout imprimer" title="Tout imprimer">
-          <Printer className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setEditChapterOpen(true)} aria-label="Édition">
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setCreateOpen(true)} aria-label="Nouveau">
-          <Plus className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setPrintPreview({ type: "all" })} aria-label="Tout imprimer">
+              <Printer className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Tout imprimer</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setEditChapterOpen(true)} aria-label="Édition">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Édition</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setCreateOpen(true)} aria-label="Nouveau">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Nouveau</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Corps */}

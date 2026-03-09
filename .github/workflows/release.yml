@@ -1,0 +1,90 @@
+name: Release
+
+# Déclenché uniquement au push d'un tag v* (créé par pnpm release:patch/minor/major)
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # historique complet pour générer le changelog
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri (portable uniquement)
+        run: pnpm tauri build --bundles none
+        # "none" = pas d'installeur, uniquement l'exécutable brut
+
+      - name: Extraire la version depuis le tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Renommer l'exécutable portable
+        shell: bash
+        run: |
+          cp "src-tauri/target/release/registre.exe" \
+             "registre-v${{ steps.version.outputs.VERSION }}-portable.exe"
+
+      - name: Générer le changelog depuis la dernière release
+        id: changelog
+        shell: bash
+        run: |
+          # Trouver le tag précédent
+          PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
+          if [ -z "$PREV_TAG" ]; then
+            # Premier tag : tous les commits
+            RANGE="HEAD"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+          fi
+
+          # Collecter les commits (hors commits de release)
+          NOTES=$(git log "$RANGE" --pretty=format:"- %s" --no-merges \
+            | grep -v "^- build: release" \
+            | grep -v "^- chore: release" || true)
+
+          if [ -z "$NOTES" ]; then
+            NOTES="- Corrections et améliorations diverses"
+          fi
+
+          # Écrire dans un fichier (multi-lignes)
+          echo "$NOTES" > changelog.txt
+          echo "PREV_TAG=$PREV_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Créer la release GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Registre v${{ steps.version.outputs.VERSION }}"
+          body_path: changelog.txt
+          files: "registre-v${{ steps.version.outputs.VERSION }}-portable.exe"
+          draft: false
+          prerelease: false

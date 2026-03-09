@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { X, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { printViaIframe } from "@/lib/print/printIframe"
 
 interface PrintPreviewProps {
@@ -40,15 +41,20 @@ export function PrintPreview({ open, onOpenChange, children }: PrintPreviewProps
               Aperçu avant impression
             </Dialog.Title>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handlePrint}
-                title="Imprimer"
-              >
-                <Printer className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handlePrint}
+                    aria-label="Imprimer"
+                  >
+                    <Printer className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Imprimer</TooltipContent>
+              </Tooltip>
               <Dialog.Close className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
                 <X className="h-4 w-4" />
               </Dialog.Close>

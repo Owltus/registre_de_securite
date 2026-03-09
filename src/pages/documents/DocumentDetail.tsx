@@ -9,6 +9,7 @@ import { DocumentPages } from "@/components/print/DocumentPages"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { ArrowLeft, Pencil, Eye, FileDown, FileOutput, Save } from "lucide-react"
 import { exportMarkdown } from "@/lib/exportMarkdown"
 
@@ -171,15 +172,20 @@ export default function DocumentDetail() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-2 p-2 border-b border-border">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9"
-          onClick={() => navigate(backPath)}
-          aria-label="Retour"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => navigate(backPath)}
+              aria-label="Retour"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Retour</TooltipContent>
+        </Tooltip>
 
         {editing ? (
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -205,36 +211,60 @@ export default function DocumentDetail() {
         <div className="flex items-center gap-2">
           {editing ? (
             <>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9"
-                onClick={() => {
-                  setEditing(false)
-                  setEditTitle(doc.title)
-                  setEditDescription(doc.description ?? "")
-                  setEditContent(doc.content)
-                }}
-                aria-label="Aperçu"
-                title="Aperçu"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button size="icon" className="h-9 w-9" onClick={handleSave} aria-label="Sauvegarder" title="Sauvegarder">
-                <Save className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={() => {
+                      setEditing(false)
+                      setEditTitle(doc.title)
+                      setEditDescription(doc.description ?? "")
+                      setEditContent(doc.content)
+                    }}
+                    aria-label="Aperçu"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Aperçu</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" className="h-9 w-9" onClick={handleSave} aria-label="Sauvegarder">
+                    <Save className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Sauvegarder</TooltipContent>
+              </Tooltip>
             </>
           ) : (
             <>
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleStartEdit} aria-label="Édition" title="Édition">
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleExport} aria-label="Exporter PDF" title="Exporter PDF">
-                <FileDown className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => exportMarkdown(editTitle, editContent)} aria-label="Exporter Markdown" title="Exporter Markdown">
-                <FileOutput className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleStartEdit} aria-label="Édition">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Édition</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleExport} aria-label="Exporter PDF">
+                    <FileDown className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exporter PDF</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => exportMarkdown(editTitle, editContent)} aria-label="Exporter Markdown">
+                    <FileOutput className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exporter Markdown</TooltipContent>
+              </Tooltip>
             </>
           )}
         </div>
