@@ -1,4 +1,4 @@
-import { FOOTER_RULE_MM, FOOTER_HEIGHT_MM, PAGINATION_HEIGHT_MM, GAP_MM } from "@/lib/print/constants"
+import { FOOTER_RULE_MM, FOOTER_RULE_GAP_MM, FOOTER_HEIGHT_MM, PAGINATION_HEIGHT_MM, GAP_MM } from "@/lib/print/constants"
 import { DEFAULT_REGISTRY_NAME } from "@/lib/navigation"
 
 interface PageFooterProps {
@@ -53,7 +53,7 @@ export function PageFooter({
       />
 
       {/* Espacement filet → contenu footer */}
-      <div style={{ height: "2.5mm", flexShrink: 0 }} />
+      <div style={{ height: `${FOOTER_RULE_GAP_MM}mm`, flexShrink: 0 }} />
 
       {/* 3 colonnes */}
       <table

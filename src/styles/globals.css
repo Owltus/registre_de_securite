@@ -333,7 +333,7 @@
 .pdf-prose pre code { background: transparent; padding: 0; border-radius: 0; font-size: inherit; }
 .pdf-prose table {
   width: 100%; border-collapse: collapse; margin-bottom: 0.35cm;
-  font-size: 9.5pt; table-layout: fixed;
+  font-size: 9.5pt; table-layout: auto; word-break: break-word;
 }
 .pdf-prose thead { display: table-header-group; }
 .pdf-prose th {

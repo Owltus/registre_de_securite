@@ -10,7 +10,8 @@
  *   Gap                3mm
  *   Pagination         3mm
  *   Gap                3mm
- *   Filet              0.3mm
+ *   Filet              0.15mm
+ *   Espacement         2.5mm
  *   Footer (3 cols)    8mm
  *   Marge basse       10mm
  *
@@ -38,8 +39,9 @@ export const HEADER_HEIGHT_MM = 12
 /** Gap uniforme entre les zones */
 export const GAP_MM = 3
 
-/** Footer : pagination + filet + 3 colonnes */
+/** Footer : pagination + filet + espacement + 3 colonnes */
 export const FOOTER_RULE_MM = 0.15
+export const FOOTER_RULE_GAP_MM = 1.5  // espacement filet → contenu footer
 export const FOOTER_HEIGHT_MM = 8
 export const PAGINATION_HEIGHT_MM = 3
 
@@ -51,11 +53,12 @@ export const CONTENT_HEIGHT_MM =
   GAP_MM -              // gap header → contenu
   GAP_MM -              // gap contenu → pagination
   PAGINATION_HEIGHT_MM -
-  GAP_MM -              // gap pagination → footer
+  GAP_MM -              // gap pagination → filet
   FOOTER_RULE_MM -
+  FOOTER_RULE_GAP_MM -  // espacement filet → contenu footer
   FOOTER_HEIGHT_MM -
   MARGIN_BOTTOM_MM
-// ≈ 244.7mm
+// ≈ 242.35mm
 
 /** Sous-titre (feuilles de suivi uniquement) */
 export const SUBTITLE_HEIGHT_MM = 7
