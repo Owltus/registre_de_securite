@@ -85,15 +85,23 @@ export default function DashboardPage() {
   const [allIntercalaires, setAllIntercalaires] = useState<Intercalaire[]>([])
   const [periodicites, setPeriodicites] = useState<Periodicite[]>([])
 
-  // Charger les contenus au montage pour le sommaire
+  // Clé stable dérivée des IDs de chapitres (évite les re-fires sur changement de référence)
+  const chapterIdsKey = sortedChapters.map((c) => c.id).join(",")
+
+  // Charger les contenus au montage pour le sommaire et les exports
   useEffect(() => {
-    if (chapters.length === 0) return
-    const subquery = "SELECT id FROM chapters WHERE classeur_id = $1"
+    if (sortedChapters.length === 0) return
+
+    // Utiliser les IDs des chapitres déjà chargés (en string, car chapter_id est TEXT dans la DB)
+    const ids = sortedChapters.map((c) => String(c.id))
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ")
+    const orderBy = "ORDER BY sort_order"
+
     Promise.all([
-      sqliteAdapter.query<Doc>(`SELECT * FROM documents WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
-      sqliteAdapter.query<TrackingSheet>(`SELECT * FROM tracking_sheets WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
-      sqliteAdapter.query<SignatureSheet>(`SELECT * FROM signature_sheets WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
-      sqliteAdapter.query<Intercalaire>(`SELECT * FROM intercalaires WHERE chapter_id IN (${subquery}) ORDER BY sort_order`, [Number(classeurId)]),
+      sqliteAdapter.query<Doc>(`SELECT * FROM documents WHERE chapter_id IN (${placeholders}) ${orderBy}`, ids),
+      sqliteAdapter.query<TrackingSheet>(`SELECT * FROM tracking_sheets WHERE chapter_id IN (${placeholders}) ${orderBy}`, ids),
+      sqliteAdapter.query<SignatureSheet>(`SELECT * FROM signature_sheets WHERE chapter_id IN (${placeholders}) ${orderBy}`, ids),
+      sqliteAdapter.query<Intercalaire>(`SELECT * FROM intercalaires WHERE chapter_id IN (${placeholders}) ${orderBy}`, ids),
       sqliteAdapter.query<Periodicite>("SELECT * FROM periodicites ORDER BY sort_order"),
     ]).then(([docs, sheets, sigs, gardes, perios]) => {
       setAllDocs(docs)
@@ -101,8 +109,11 @@ export default function DashboardPage() {
       setAllSignatureSheets(sigs)
       setAllIntercalaires(gardes)
       setPeriodicites(perios)
+    }).catch((err) => {
+      console.error("[DashboardPage] Erreur chargement données export :", err)
     })
-  }, [chapters, classeurId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapterIdsKey])
 
   const openEditDialog = () => {
     setEditValue(classeurName)

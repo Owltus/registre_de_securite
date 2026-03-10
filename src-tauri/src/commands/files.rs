@@ -155,11 +155,16 @@ fn do_import(db_path: &str, source_path: &str) -> Result<i64, AppError> {
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
         let new_ch_id = conn.last_insert_rowid();
 
+        // chapter_id est TEXT dans le schéma — convertir les IDs en string
+        // pour rester cohérent avec le frontend qui stocke String(chapterId)
+        let new_ch_str = new_ch_id.to_string();
+        let old_ch_str = old_ch_id.to_string();
+
         // Documents
         conn.execute(
             "INSERT INTO documents (title, description, content, chapter_id, sort_order, created_at, updated_at) \
              SELECT title, description, content, ?1, sort_order, created_at, updated_at FROM imported.documents WHERE chapter_id = ?2",
-            rusqlite::params![new_ch_id, old_ch_id],
+            rusqlite::params![new_ch_str, old_ch_str],
         )
         .map_err(|e| AppError::DatabaseError(format!("documents : {}", e)))?;
 
@@ -167,7 +172,7 @@ fn do_import(db_path: &str, source_path: &str) -> Result<i64, AppError> {
         conn.execute(
             "INSERT INTO tracking_sheets (title, chapter_id, periodicite_id, sort_order, created_at, updated_at) \
              SELECT title, ?1, periodicite_id, sort_order, created_at, updated_at FROM imported.tracking_sheets WHERE chapter_id = ?2",
-            rusqlite::params![new_ch_id, old_ch_id],
+            rusqlite::params![new_ch_str, old_ch_str],
         )
         .map_err(|e| AppError::DatabaseError(format!("tracking_sheets : {}", e)))?;
 
@@ -175,7 +180,7 @@ fn do_import(db_path: &str, source_path: &str) -> Result<i64, AppError> {
         conn.execute(
             "INSERT INTO signature_sheets (title, description, chapter_id, nombre, sort_order, created_at, updated_at) \
              SELECT title, description, ?1, nombre, sort_order, created_at, updated_at FROM imported.signature_sheets WHERE chapter_id = ?2",
-            rusqlite::params![new_ch_id, old_ch_id],
+            rusqlite::params![new_ch_str, old_ch_str],
         )
         .map_err(|e| AppError::DatabaseError(format!("signature_sheets : {}", e)))?;
 
@@ -183,7 +188,7 @@ fn do_import(db_path: &str, source_path: &str) -> Result<i64, AppError> {
         conn.execute(
             "INSERT INTO intercalaires (title, description, chapter_id, sort_order, created_at, updated_at) \
              SELECT title, description, ?1, sort_order, created_at, updated_at FROM imported.intercalaires WHERE chapter_id = ?2",
-            rusqlite::params![new_ch_id, old_ch_id],
+            rusqlite::params![new_ch_str, old_ch_str],
         )
         .map_err(|e| AppError::DatabaseError(format!("intercalaires : {}", e)))?;
     }
