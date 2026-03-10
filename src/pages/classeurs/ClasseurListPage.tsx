@@ -141,47 +141,43 @@ export default function ClasseurListPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Corps */}
       <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
-        <div className="flex flex-col gap-3 max-w-md w-full">
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-4 rounded-lg border border-dashed bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground shrink-0">
-              <Plus className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-muted-foreground">Nouveau classeur</span>
-              <span className="text-xs text-muted-foreground/70">Créez un classeur vierge ou pré-rempli avec les chapitres types</span>
-            </div>
-          </button>
+        <div className="flex flex-col gap-4 max-w-md w-full">
 
-          <button
-            onClick={async () => {
-              const newId = await importDatabase()
-              handleImportResult(newId)
-            }}
-            onDragEnter={onDragEnter}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
-            className={`relative flex items-center gap-4 rounded-lg border border-dashed px-5 py-4 hover:bg-accent transition-colors text-left ${isDragOver ? "border-primary bg-primary/5" : "bg-card"}`}
-          >
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg shrink-0 ${isDragOver ? "bg-primary/10 text-primary" : "bg-accent text-accent-foreground"}`}>
-              {isDragOver ? <Upload className="h-5 w-5" /> : <Download className="h-5 w-5" />}
-            </div>
-            <div className="flex flex-col">
-              <span className={`text-sm font-medium ${isDragOver ? "text-primary" : "text-muted-foreground"}`}>
-                {isDragOver ? "Déposez le fichier .db ici" : "Importer un classeur"}
-              </span>
-              {!isDragOver && (
-                <span className="text-xs text-muted-foreground/70">Reprenez un classeur existant depuis une sauvegarde</span>
-              )}
-            </div>
-          </button>
+          {/* Nouveau classeur + Importer */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-4 rounded-lg border border-dashed bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
+            >
+              <Plus className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">Nouveau classeur</span>
+                <span className="text-xs text-muted-foreground">Vierge ou pré-rempli</span>
+              </div>
+            </button>
+            <button
+              onClick={async () => {
+                const newId = await importDatabase()
+                handleImportResult(newId)
+              }}
+              onDragEnter={onDragEnter}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              className={`flex items-center gap-4 rounded-lg border border-dashed px-5 py-4 hover:bg-accent transition-colors text-left ${isDragOver ? "border-primary bg-primary/5" : "bg-card"}`}
+            >
+              {isDragOver ? <Upload className="h-5 w-5 text-muted-foreground shrink-0" /> : <Download className="h-5 w-5 text-muted-foreground shrink-0" />}
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">{isDragOver ? "Déposez ici" : "Importer"}</span>
+                {!isDragOver && <span className="text-xs text-muted-foreground">Depuis un fichier .db</span>}
+              </div>
+            </button>
+          </div>
 
           {sortedClasseurs.length > 0 && <div className="border-b border-border" />}
+
+          {/* Liste des classeurs */}
           {sortedClasseurs.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center">
               Aucun classeur. Créez-en un pour commencer.
@@ -196,14 +192,10 @@ export default function ClasseurListPage() {
                   onClick={() => navigate(`/classeurs/${cl.id}`)}
                   className="group flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground shrink-0">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                    <span className="text-sm font-semibold truncate">{cl.name}</span>
-                    {subtitle && (
-                      <span className="text-xs text-muted-foreground truncate">{subtitle}</span>
-                    )}
+                  <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1 min-h-[2.5rem] justify-center">
+                    <span className="text-sm font-medium truncate">{cl.name}</span>
+                    {subtitle && <span className="text-xs text-muted-foreground truncate">{subtitle}</span>}
                   </div>
                   <Tooltip>
                     <TooltipTrigger asChild>

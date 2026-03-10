@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, Fragment } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
-import { Pencil, X, Plus, Printer, List, FileArchive, Database } from "lucide-react"
+import { X, Plus, Printer, List, FileArchive, Database, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DEFAULT_REGISTRY_NAME, buildEstablishment, type ChapterRow, type ClasseurRow } from "@/lib/navigation"
@@ -161,98 +161,106 @@ export default function DashboardPage() {
     }
   })
 
+  const handleExportMarkdown = async () => {
+    try {
+      const data: ExportChapter[] = sortedChapters.map((ch, i) => ({
+        label: ch.label,
+        sortOrder: i + 1,
+        documents: allDocs
+          .filter((d) => String(d.chapter_id) === String(ch.id))
+          .map((d) => ({ title: d.title, content: d.content })),
+      }))
+      await exportClasseurZip(classeurName, data)
+      toast.success("Export Markdown terminé")
+    } catch {
+      toast.error("Erreur lors de l'export Markdown")
+    }
+  }
+
+  const handleExportDb = async () => {
+    try {
+      await exportDatabase(classeurName, Number(classeurId))
+      toast.success("Export base de données terminé")
+    } catch {
+      toast.error("Erreur lors de l'export base de données")
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Corps */}
       <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
-        <div className="flex flex-col gap-6 max-w-md w-full">
-          {/* Actions */}
-          <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4 max-w-md w-full">
+
+          {/* Nouveau chapitre + Paramètres */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-4 rounded-lg border border-dashed bg-card px-5 py-4 hover:bg-accent transition-colors text-left flex-1"
+            >
+              <Plus className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">Nouveau chapitre</span>
+                <span className="text-xs text-muted-foreground">Ajouter un chapitre au classeur</span>
+              </div>
+            </button>
+            <button
+              onClick={openEditDialog}
+              className="flex items-center justify-center rounded-lg border bg-card px-3 hover:bg-accent transition-colors shrink-0"
+              aria-label="Paramètres du classeur"
+            >
+              <Settings className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Sommaire + PDF */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setTocOpen(true)}
+              disabled={!dataLoaded}
+              className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <List className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">Sommaire</span>
+                <span className="text-xs text-muted-foreground">Table des matières</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setPrintOpen(true)}
+              disabled={!dataLoaded}
+              className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <Printer className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">Exporter PDF</span>
+                <span className="text-xs text-muted-foreground">Classeur complet</span>
+              </div>
+            </button>
+          </div>
+
+          <div className="border-b border-border" />
           <button
-            onClick={openEditDialog}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
-          >
-            <Pencil className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Paramètres du classeur</span>
-              <span className="text-xs text-muted-foreground">Modifier le nom, l'icône et les informations de l'établissement</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
-          >
-            <Plus className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Ajouter un chapitre</span>
-              <span className="text-xs text-muted-foreground">Créer un nouveau chapitre dans ce classeur</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setTocOpen(true)}
             disabled={!dataLoaded}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
-          >
-            <List className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Afficher le sommaire</span>
-              <span className="text-xs text-muted-foreground">Générer un PDF avec la table des matières du classeur</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setPrintOpen(true)}
-            disabled={!dataLoaded}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
-          >
-            <Printer className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Exporter le classeur en PDF</span>
-              <span className="text-xs text-muted-foreground">Générer un PDF avec l'ensemble des chapitres et documents</span>
-            </div>
-          </button>
-          <button
-            disabled={!dataLoaded}
-            onClick={async () => {
-              try {
-                const data: ExportChapter[] = sortedChapters.map((ch, i) => ({
-                  label: ch.label,
-                  sortOrder: i + 1,
-                  documents: allDocs
-                    .filter((d) => String(d.chapter_id) === String(ch.id))
-                    .map((d) => ({ title: d.title, content: d.content })),
-                }))
-                await exportClasseurZip(classeurName, data)
-                toast.success("Export Markdown terminé")
-              } catch {
-                toast.error("Erreur lors de l'export Markdown")
-              }
-            }}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
+            onClick={handleExportMarkdown}
+            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
           >
             <FileArchive className="h-5 w-5 text-muted-foreground shrink-0" />
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Exporter le classeur en Markdown</span>
-              <span className="text-xs text-muted-foreground">Créer une archive contenant tous les documents</span>
+              <span className="text-sm font-medium">Exporter en Markdown</span>
+              <span className="text-xs text-muted-foreground">Archive ZIP contenant tous les documents</span>
             </div>
           </button>
           <button
-            onClick={async () => {
-              try {
-                await exportDatabase(classeurName, Number(classeurId))
-                toast.success("Export base de données terminé")
-              } catch {
-                toast.error("Erreur lors de l'export base de données")
-              }
-            }}
+            onClick={handleExportDb}
             className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
           >
             <Database className="h-5 w-5 text-muted-foreground shrink-0" />
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Exporter le classeur en base de données</span>
-              <span className="text-xs text-muted-foreground">Sauvegarder les données du classeur dans un fichier SQLite</span>
+              <span className="text-sm font-medium">Sauvegarder (.db)</span>
+              <span className="text-xs text-muted-foreground">Fichier SQLite réimportable dans l'application</span>
             </div>
           </button>
-          </div>
+
         </div>
       </div>
 
