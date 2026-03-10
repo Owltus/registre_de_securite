@@ -84,31 +84,38 @@ export default function DashboardPage() {
   const [allSignatureSheets, setAllSignatureSheets] = useState<SignatureSheet[]>([])
   const [allIntercalaires, setAllIntercalaires] = useState<Intercalaire[]>([])
   const [periodicites, setPeriodicites] = useState<Periodicite[]>([])
+  const [dataLoaded, setDataLoaded] = useState(false)
 
   // Clé stable dérivée des IDs de chapitres (évite les re-fires sur changement de référence)
   const chapterIdsKey = sortedChapters.map((c) => c.id).join(",")
 
   // Charger les contenus au montage pour le sommaire et les exports
-  // Utilise getAll par chapitre (même méthode que ChapterPage, prouvée fonctionnelle)
+  // 5 requêtes simples (une par table) puis filtrage JS côté client
   useEffect(() => {
-    if (sortedChapters.length === 0) return
+    if (sortedChapters.length === 0) {
+      setDataLoaded(true)
+      return
+    }
+    setDataLoaded(false)
 
-    const ids = sortedChapters.map((c) => String(c.id))
+    const chapterIds = new Set(sortedChapters.map((c) => String(c.id)))
 
     Promise.all([
-      Promise.all(ids.map((id) => sqliteAdapter.getAll("documents", { chapter_id: id }))).then((r) => r.flat() as Doc[]),
-      Promise.all(ids.map((id) => sqliteAdapter.getAll("tracking_sheets", { chapter_id: id }))).then((r) => r.flat() as TrackingSheet[]),
-      Promise.all(ids.map((id) => sqliteAdapter.getAll("signature_sheets", { chapter_id: id }))).then((r) => r.flat() as SignatureSheet[]),
-      Promise.all(ids.map((id) => sqliteAdapter.getAll("intercalaires", { chapter_id: id }))).then((r) => r.flat() as Intercalaire[]),
-      sqliteAdapter.getAll("periodicites") as Promise<Periodicite[]>,
+      sqliteAdapter.getAll("documents"),
+      sqliteAdapter.getAll("tracking_sheets"),
+      sqliteAdapter.getAll("signature_sheets"),
+      sqliteAdapter.getAll("intercalaires"),
+      sqliteAdapter.getAll("periodicites"),
     ]).then(([docs, sheets, sigs, gardes, perios]) => {
-      setAllDocs(docs)
-      setAllTrackingSheets(sheets)
-      setAllSignatureSheets(sigs)
-      setAllIntercalaires(gardes)
-      setPeriodicites(perios)
+      setAllDocs((docs as Doc[]).filter((d) => chapterIds.has(String(d.chapter_id))))
+      setAllTrackingSheets((sheets as TrackingSheet[]).filter((s) => chapterIds.has(String(s.chapter_id))))
+      setAllSignatureSheets((sigs as SignatureSheet[]).filter((s) => chapterIds.has(String(s.chapter_id))))
+      setAllIntercalaires((gardes as Intercalaire[]).filter((g) => chapterIds.has(String(g.chapter_id))))
+      setPeriodicites(perios as Periodicite[])
+      setDataLoaded(true)
     }).catch((err) => {
       console.error("[DashboardPage] Erreur chargement données export :", err)
+      setDataLoaded(true)
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterIdsKey])
@@ -182,7 +189,8 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setTocOpen(true)}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
+            disabled={!dataLoaded}
+            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
           >
             <List className="h-5 w-5 text-muted-foreground shrink-0" />
             <div className="flex flex-col gap-0.5">
@@ -192,7 +200,8 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setPrintOpen(true)}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
+            disabled={!dataLoaded}
+            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
           >
             <Printer className="h-5 w-5 text-muted-foreground shrink-0" />
             <div className="flex flex-col gap-0.5">
@@ -201,6 +210,7 @@ export default function DashboardPage() {
             </div>
           </button>
           <button
+            disabled={!dataLoaded}
             onClick={() => {
               const data: ExportChapter[] = sortedChapters.map((ch, i) => ({
                 label: ch.label,
@@ -211,7 +221,7 @@ export default function DashboardPage() {
               }))
               exportClasseurZip(classeurName, data)
             }}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
+            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
           >
             <FileArchive className="h-5 w-5 text-muted-foreground shrink-0" />
             <div className="flex flex-col gap-0.5">

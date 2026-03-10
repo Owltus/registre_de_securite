@@ -1,5 +1,5 @@
--- Ajout de la périodicité « Quadriennal » et colonne de tri sur periodicites
-ALTER TABLE periodicites ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
+-- Ajout de la périodicité « Quadriennal » et mise à jour du tri
+-- Note : sort_order existe déjà dans le schéma initial (v1)
 
 UPDATE periodicites SET sort_order = id WHERE id <= 6;
 UPDATE periodicites SET sort_order = 8 WHERE id = 7;  -- Quinquennal → position 8

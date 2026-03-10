@@ -65,7 +65,9 @@ pub async fn export_database(
         conn.execute_batch("PRAGMA journal_mode=DELETE;")
             .map_err(|e| AppError::DatabaseError(format!("journal_mode : {}", e)))?;
 
-        let sub = "SELECT id FROM chapters WHERE classeur_id = ?1";
+        // chapter_id est TEXT dans le schéma, id est INTEGER dans chapters :
+        // il faut CAST pour que la comparaison NOT IN fonctionne en SQLite
+        let sub = "SELECT CAST(id AS TEXT) FROM chapters WHERE classeur_id = ?1";
         conn.execute(
             &format!("DELETE FROM intercalaires WHERE chapter_id NOT IN ({sub})"),
             [classeur_id],
@@ -184,13 +186,19 @@ fn do_import(db_path: &str, source_path: &str) -> Result<i64, AppError> {
         )
         .map_err(|e| AppError::DatabaseError(format!("signature_sheets : {}", e)))?;
 
-        // Intercalaires
-        conn.execute(
-            "INSERT INTO intercalaires (title, description, chapter_id, sort_order, created_at, updated_at) \
-             SELECT title, description, ?1, sort_order, created_at, updated_at FROM imported.intercalaires WHERE chapter_id = ?2",
-            rusqlite::params![new_ch_str, old_ch_str],
-        )
-        .map_err(|e| AppError::DatabaseError(format!("intercalaires : {}", e)))?;
+        // Intercalaires (table absente dans les bases exportées avant v0.5.10)
+        let has_intercalaires: bool = conn
+            .prepare("SELECT 1 FROM imported.sqlite_master WHERE type='table' AND name='intercalaires'")
+            .and_then(|mut s| s.exists([]))
+            .unwrap_or(false);
+        if has_intercalaires {
+            conn.execute(
+                "INSERT INTO intercalaires (title, description, chapter_id, sort_order, created_at, updated_at) \
+                 SELECT title, description, ?1, sort_order, created_at, updated_at FROM imported.intercalaires WHERE chapter_id = ?2",
+                rusqlite::params![new_ch_str, old_ch_str],
+            )
+            .map_err(|e| AppError::DatabaseError(format!("intercalaires : {}", e)))?;
+        }
     }
 
     conn.execute_batch("DETACH DATABASE imported;")
