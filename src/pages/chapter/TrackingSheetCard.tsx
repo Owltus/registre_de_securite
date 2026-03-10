@@ -53,7 +53,7 @@ export function TrackingSheetCard({ sheet, chapterId, classeurId, chapterName, c
 
   const handleClick = useCallback(() => {
     navigate(classeurId ? `/classeurs/${classeurId}/chapitres/${chapterId}/sheets/${sheet.id}` : `/chapitres/${chapterId}/sheets/${sheet.id}`)
-  }, [navigate, chapterId, sheet.id])
+  }, [navigate, chapterId, sheet.id, classeurId])
 
   return (
     <div

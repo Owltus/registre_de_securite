@@ -52,7 +52,7 @@ export function SignatureSheetCard({ sheet, chapterId, classeurId, chapterName, 
 
   const handleClick = useCallback(() => {
     navigate(classeurId ? `/classeurs/${classeurId}/chapitres/${chapterId}/signatures/${sheet.id}` : `/chapitres/${chapterId}/signatures/${sheet.id}`)
-  }, [navigate, chapterId, sheet.id])
+  }, [navigate, chapterId, sheet.id, classeurId])
 
   return (
     <div

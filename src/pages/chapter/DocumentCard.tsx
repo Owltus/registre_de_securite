@@ -58,7 +58,7 @@ export function DocumentCard({ doc, chapterId, classeurId, chapterName, classeur
 
   const handleClick = useCallback(() => {
     navigate(classeurId ? `/classeurs/${classeurId}/chapitres/${chapterId}/documents/${doc.id}` : `/chapitres/${chapterId}/documents/${doc.id}`)
-  }, [navigate, chapterId, doc.id])
+  }, [navigate, chapterId, doc.id, classeurId])
 
   return (
     <div

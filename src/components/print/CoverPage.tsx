@@ -5,6 +5,7 @@ import {
   MARGIN_BOTTOM_MM,
   MARGIN_X_MM,
 } from "@/lib/print/constants"
+import { createElement } from "react"
 import { DEFAULT_REGISTRY_NAME, getChapterIcon } from "@/lib/navigation"
 
 interface CoverPageProps {
@@ -17,7 +18,6 @@ interface CoverPageProps {
 
 /** Page de garde du chapitre — pas de header ni footer, contenu centré */
 export function CoverPage({ chapterLabel, chapterDescription, chapterIcon, classeurName = DEFAULT_REGISTRY_NAME, themed }: CoverPageProps) {
-  const Icon = chapterIcon ? getChapterIcon(chapterIcon) : null
   return (
     <div
       className={themed ? "a4-page a4-page-themed bg-card text-card-foreground" : "a4-page"}
@@ -38,13 +38,11 @@ export function CoverPage({ chapterLabel, chapterDescription, chapterIcon, class
     >
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12mm" }}>
         {/* Logo */}
-        {Icon && (
-          <Icon
-            width={64}
-            height={64}
-            style={{ color: themed ? "hsl(var(--muted-foreground))" : "#666" }}
-          />
-        )}
+        {chapterIcon && createElement(getChapterIcon(chapterIcon), {
+          width: 64,
+          height: 64,
+          style: { color: themed ? "hsl(var(--muted-foreground))" : "#666" },
+        })}
 
         {/* Nom du classeur */}
         <span

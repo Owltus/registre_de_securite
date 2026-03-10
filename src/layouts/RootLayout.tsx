@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, createElement } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Library, Menu, Minus, Square, X } from "lucide-react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
@@ -45,30 +45,34 @@ export function RootLayout() {
   const location = useLocation()
   const classeurId = extractClasseurId(location.pathname)
   const isClasseurList = location.pathname === "/"
-  const [displayName, setDisplayName] = useState("Mes classeurs")
-  const [displayIcon, setDisplayIcon] = useState<string | null>(null)
-  const [displayEtablissement, setDisplayEtablissement] = useState("")
-  const [displayComplement, setDisplayComplement] = useState("")
-  const appWindow = getCurrentWindow()
+  const defaultDisplay = { name: "Mes classeurs", icon: null as string | null, etablissement: "", complement: "" }
+  const [fetchedDisplay, setFetchedDisplay] = useState<{
+    name: string
+    icon: string | null
+    etablissement: string
+    complement: string
+  } | null>(null)
+  const classeurDisplay = classeurId ? (fetchedDisplay ?? defaultDisplay) : defaultDisplay
+  const displayName = classeurDisplay.name
+  const displayIcon = classeurDisplay.icon
+  const displayEtablissement = classeurDisplay.etablissement
+  const displayComplement = classeurDisplay.complement
+  const appWindow = useMemo(() => getCurrentWindow(), [])
 
   // Charger le nom et l'icône du classeur actif
   useEffect(() => {
-    if (!classeurId) {
-      setDisplayName("Mes classeurs")
-      setDisplayIcon(null)
-      setDisplayEtablissement("")
-      setDisplayComplement("")
-      return
-    }
+    if (!classeurId) return
     sqliteAdapter
       .get("classeurs", classeurId)
       .then((row) => {
         if (row && typeof row === "object" && "name" in row) {
           const r = row as { name: string; icon?: string; etablissement?: string; etablissement_complement?: string }
-          setDisplayName(r.name)
-          setDisplayIcon(r.icon ?? null)
-          setDisplayEtablissement(r.etablissement ?? "")
-          setDisplayComplement(r.etablissement_complement ?? "")
+          setFetchedDisplay({
+            name: r.name,
+            icon: r.icon ?? null,
+            etablissement: r.etablissement ?? "",
+            complement: r.etablissement_complement ?? "",
+          })
         }
       })
   }, [classeurId])
@@ -81,10 +85,12 @@ export function RootLayout() {
       .then((row) => {
         if (row && typeof row === "object" && "name" in row) {
           const r = row as { name: string; icon?: string; etablissement?: string; etablissement_complement?: string }
-          setDisplayName(r.name)
-          setDisplayIcon(r.icon ?? null)
-          setDisplayEtablissement(r.etablissement ?? "")
-          setDisplayComplement(r.etablissement_complement ?? "")
+          setFetchedDisplay({
+            name: r.name,
+            icon: r.icon ?? null,
+            etablissement: r.etablissement ?? "",
+            complement: r.etablissement_complement ?? "",
+          })
         }
       })
   }), [classeurId])
@@ -96,7 +102,7 @@ export function RootLayout() {
       appWindow.isMaximized().then(setMaximized)
     })
     return () => { unlisten.then(fn => fn()) }
-  }, [])
+  }, [appWindow])
 
   return (
     <div className="flex h-screen flex-col">
@@ -106,25 +112,23 @@ export function RootLayout() {
         className="flex select-none items-center border-b px-4 py-2"
       >
         {/* Gauche : icône classeur + nom — cliquable pour revenir à la liste des classeurs */}
-        {(() => {
-          const ClasseurIcon = displayIcon ? getChapterIcon(displayIcon) : null
-          const subtitle = [displayEtablissement, displayComplement].filter(Boolean).join(" · ")
-          return isClasseurList ? (
-            <div className="pointer-events-none flex items-center gap-2">
-              <Library className="h-5 w-5" />
-              <span className="text-sm font-semibold">Mes classeurs</span>
-            </div>
-          ) : (
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 rounded-md px-1 -ml-1 hover:bg-accent transition-colors"
-            >
-              {ClasseurIcon ? <ClasseurIcon className="h-5 w-5" /> : <AppLogo size={20} />}
-              <span className="text-sm font-semibold">{displayName}</span>
-              {subtitle && <span className="text-xs text-muted-foreground">· {subtitle}</span>}
-            </button>
-          )
-        })()}
+        {isClasseurList ? (
+          <div className="pointer-events-none flex items-center gap-2">
+            <Library className="h-5 w-5" />
+            <span className="text-sm font-semibold">Mes classeurs</span>
+          </div>
+        ) : (
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 rounded-md px-1 -ml-1 hover:bg-accent transition-colors"
+          >
+            {displayIcon ? createElement(getChapterIcon(displayIcon), { className: "h-5 w-5" }) : <AppLogo size={20} />}
+            <span className="text-sm font-semibold">{displayName}</span>
+            {[displayEtablissement, displayComplement].filter(Boolean).length > 0 && (
+              <span className="text-xs text-muted-foreground">· {[displayEtablissement, displayComplement].filter(Boolean).join(" · ")}</span>
+            )}
+          </button>
+        )}
 
         {/* Droite : hamburger (mobile) + boutons fenêtre */}
         <div className="ml-auto flex items-center gap-1">

@@ -79,8 +79,14 @@ export default function ChapterPage() {
   }, [docs, trackingSheets, signatureSheets, intercalaires])
 
   // État local optimiste pour le réordonnancement
-  const [localItems, setLocalItems] = useState<ChapterItem[]>([])
-  useEffect(() => { setLocalItems(allItems) }, [allItems])
+  const [optimisticItems, setOptimisticItems] = useState<ChapterItem[] | null>(null)
+  const [prevAllItems, setPrevAllItems] = useState(allItems)
+  if (prevAllItems !== allItems) {
+    setPrevAllItems(allItems)
+    if (optimisticItems !== null) setOptimisticItems(null)
+  }
+  const localItems = optimisticItems ?? allItems
+  const setLocalItems = setOptimisticItems
 
   // IDs pour le SortableContext (préfixés selon le type)
   const sortableIds = useMemo(
@@ -209,7 +215,7 @@ export default function ChapterPage() {
         gpRefetch()
       }
     },
-    [localItems, updateDoc, updateTs, updateSs, updateGp, refetch, tsRefetch, ssRefetch, gpRefetch]
+    [localItems, setLocalItems, updateDoc, updateTs, updateSs, updateGp, refetch, tsRefetch, ssRefetch, gpRefetch]
   )
 
   useEffect(() => {
@@ -406,7 +412,7 @@ export default function ChapterPage() {
     await removeChapter(chapterId)
     emit(CHAPTERS_CHANGED)
     navigate(classeurId ? `/classeurs/${classeurId}` : "/")
-  }, [chapterId, removeChapter, navigate])
+  }, [chapterId, classeurId, removeChapter, navigate])
 
   const deleteDialogConfig = useMemo(() => {
     if (!deleteItem) return { title: "", sr: "" }

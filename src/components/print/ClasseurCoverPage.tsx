@@ -5,6 +5,7 @@ import {
   MARGIN_BOTTOM_MM,
   MARGIN_X_MM,
 } from "@/lib/print/constants"
+import { createElement } from "react"
 import { DEFAULT_REGISTRY_NAME, getChapterIcon } from "@/lib/navigation"
 
 interface ClasseurCoverPageProps {
@@ -23,8 +24,6 @@ export function ClasseurCoverPage({
   etablissementComplement,
   themed,
 }: ClasseurCoverPageProps) {
-  const Icon = classeurIcon ? getChapterIcon(classeurIcon) : null
-
   return (
     <div
       className={themed ? "a4-page a4-page-themed bg-card text-card-foreground" : "a4-page"}
@@ -45,13 +44,11 @@ export function ClasseurCoverPage({
     >
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10mm" }}>
         {/* Icône du classeur */}
-        {Icon && (
-          <Icon
-            width={72}
-            height={72}
-            style={{ color: themed ? "hsl(var(--muted-foreground))" : "#666" }}
-          />
-        )}
+        {classeurIcon && createElement(getChapterIcon(classeurIcon), {
+          width: 72,
+          height: 72,
+          style: { color: themed ? "hsl(var(--muted-foreground))" : "#666" },
+        })}
 
         {/* Nom du classeur */}
         <span
