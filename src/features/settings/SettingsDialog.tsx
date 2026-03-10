@@ -54,7 +54,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     if (open) {
       invoke<AppInfo>("get_app_info").then(setInfo)  
       invoke<string>("get_db_url").then((url) => {
-        // url = "sqlite:C:\...\sqlite\classeur.db" → extraire le dossier parent
+        // url = "sqlite:C:\...\sqlite\registre.db" → extraire le dossier parent
         const path = url.replace(/^sqlite:/, "")
         const sep = path.includes("\\") ? "\\" : "/"
         const folder = path.substring(0, path.lastIndexOf(sep))

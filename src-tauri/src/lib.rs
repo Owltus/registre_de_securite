@@ -6,9 +6,8 @@ use state::AppState;
 use tauri::Manager;
 
 /// Résout le dossier de données selon le mode d'exécution :
-/// - Dev : `<racine du projet>/sqlite/` (via CARGO_MANIFEST_DIR)
-/// - Production portable : `<dossier de l'exe>/sqlite/` (si fichier `portable` présent à côté de l'exe)
-/// - Production installée : `<AppData>/com.owltus.registre/sqlite/`
+/// - Dev : `<racine du projet>/sqlite/registre.db` (via CARGO_MANIFEST_DIR)
+/// - Production : `<Documents>/registre/sqlite/registre.db`
 fn resolve_db_path() -> String {
     let base_dir = if cfg!(debug_assertions) {
         // Dev : CARGO_MANIFEST_DIR pointe vers src-tauri/, on remonte à la racine
@@ -17,26 +16,15 @@ fn resolve_db_path() -> String {
             .expect("impossible de résoudre la racine du projet")
             .to_path_buf()
     } else {
-        let exe_dir = std::env::current_exe()
-            .expect("impossible de résoudre le chemin de l'exécutable")
-            .parent()
-            .expect("impossible de résoudre le dossier parent")
-            .to_path_buf();
-
-        if exe_dir.join("portable").exists() {
-            // Mode portable : données à côté de l'exécutable
-            exe_dir
-        } else {
-            // Mode installé : données dans AppData
-            dirs::data_dir()
-                .expect("impossible de résoudre le dossier AppData")
-                .join("com.owltus.registre")
-        }
+        // Production : données dans Documents/registre
+        dirs::document_dir()
+            .expect("impossible de résoudre le dossier Documents")
+            .join("registre")
     };
 
     let sqlite_dir = base_dir.join("sqlite");
     std::fs::create_dir_all(&sqlite_dir).expect("impossible de créer le dossier sqlite");
-    let db_path = sqlite_dir.join("classeur.db");
+    let db_path = sqlite_dir.join("registre.db");
     format!("sqlite:{}", db_path.display())
 }
 
