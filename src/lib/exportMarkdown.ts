@@ -91,7 +91,7 @@ export async function importDatabase(): Promise<number | null> {
 
   if (!selected) return null
 
-  const path = typeof selected === "string" ? selected : selected.path
+  const path = typeof selected === "string" ? selected : String(selected)
   const newId = await invoke<number>("import_database", { source: path })
   return newId
 }
