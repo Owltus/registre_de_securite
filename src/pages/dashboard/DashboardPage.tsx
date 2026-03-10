@@ -89,20 +89,18 @@ export default function DashboardPage() {
   const chapterIdsKey = sortedChapters.map((c) => c.id).join(",")
 
   // Charger les contenus au montage pour le sommaire et les exports
+  // Utilise getAll par chapitre (même méthode que ChapterPage, prouvée fonctionnelle)
   useEffect(() => {
     if (sortedChapters.length === 0) return
 
-    // Utiliser les IDs des chapitres déjà chargés (en string, car chapter_id est TEXT dans la DB)
     const ids = sortedChapters.map((c) => String(c.id))
-    const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ")
-    const orderBy = "ORDER BY sort_order"
 
     Promise.all([
-      sqliteAdapter.query<Doc>(`SELECT * FROM documents WHERE chapter_id IN (${placeholders}) ${orderBy}`, ids),
-      sqliteAdapter.query<TrackingSheet>(`SELECT * FROM tracking_sheets WHERE chapter_id IN (${placeholders}) ${orderBy}`, ids),
-      sqliteAdapter.query<SignatureSheet>(`SELECT * FROM signature_sheets WHERE chapter_id IN (${placeholders}) ${orderBy}`, ids),
-      sqliteAdapter.query<Intercalaire>(`SELECT * FROM intercalaires WHERE chapter_id IN (${placeholders}) ${orderBy}`, ids),
-      sqliteAdapter.query<Periodicite>("SELECT * FROM periodicites ORDER BY sort_order"),
+      Promise.all(ids.map((id) => sqliteAdapter.getAll("documents", { chapter_id: id }))).then((r) => r.flat() as Doc[]),
+      Promise.all(ids.map((id) => sqliteAdapter.getAll("tracking_sheets", { chapter_id: id }))).then((r) => r.flat() as TrackingSheet[]),
+      Promise.all(ids.map((id) => sqliteAdapter.getAll("signature_sheets", { chapter_id: id }))).then((r) => r.flat() as SignatureSheet[]),
+      Promise.all(ids.map((id) => sqliteAdapter.getAll("intercalaires", { chapter_id: id }))).then((r) => r.flat() as Intercalaire[]),
+      sqliteAdapter.getAll("periodicites") as Promise<Periodicite[]>,
     ]).then(([docs, sheets, sigs, gardes, perios]) => {
       setAllDocs(docs)
       setAllTrackingSheets(sheets)
