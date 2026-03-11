@@ -560,7 +560,7 @@ export default function ChapterPage() {
       </div>
 
       {/* Aperçu avant impression */}
-      <PrintPreview open={printPreview !== null} onOpenChange={(open) => { if (!open) setPrintPreview(null) }}>
+      <PrintPreview open={printPreview !== null} onOpenChange={(open) => { if (!open) setPrintPreview(null) }} filename={chapter?.label || "chapitre"}>
         {printPreview?.type === "document" && (
           <DocumentPages
             title={printPreview.doc.title || "Sans titre"}

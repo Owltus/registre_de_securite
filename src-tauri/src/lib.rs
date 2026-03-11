@@ -63,6 +63,7 @@ pub fn run() {
             commands::files::import_classeur_json,
             commands::files::import_json_as_new_classeur,
             commands::files::import_json_as_new_classeur_from_bytes,
+            commands::pdf::generate_pdf,
         ])
         .setup(|app| {
             // Définir l'icône de la fenêtre (visible en dev et en build)

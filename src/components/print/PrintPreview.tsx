@@ -1,14 +1,18 @@
 import { useRef, type ReactNode } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Printer } from "lucide-react"
+import { X, Printer, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { printViaIframe } from "@/lib/print/printIframe"
+import { downloadPdf } from "@/lib/print/downloadPdf"
+import { toast } from "sonner"
 
 interface PrintPreviewProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   children: ReactNode
+  /** Nom du fichier PDF (sans extension). Par défaut "document". */
+  filename?: string
 }
 
 /**
@@ -17,12 +21,23 @@ interface PrintPreviewProps {
  * L'impression utilise un iframe caché pour contourner les limitations
  * du Dialog Radix (position fixed, flex, overflow).
  */
-export function PrintPreview({ open, onOpenChange, children }: PrintPreviewProps) {
+export function PrintPreview({ open, onOpenChange, children, filename = "document" }: PrintPreviewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (scrollRef.current) {
-      printViaIframe(scrollRef.current)
+      await printViaIframe(scrollRef.current)
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!scrollRef.current) return
+    try {
+      await downloadPdf(scrollRef.current, `${filename}.pdf`)
+      toast.success("PDF enregistré avec succès")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      toast.error("Erreur lors de la génération du PDF", { description: message })
     }
   }
 
@@ -41,6 +56,20 @@ export function PrintPreview({ open, onOpenChange, children }: PrintPreviewProps
               Aperçu avant impression
             </Dialog.Title>
             <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleDownload}
+                    aria-label="Télécharger en PDF"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Télécharger en PDF</TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

@@ -232,7 +232,7 @@ export default function TrackingSheetDetail() {
       </div>
 
       {/* Aperçu avant impression */}
-      <PrintPreview open={previewOpen} onOpenChange={setPreviewOpen}>
+      <PrintPreview open={previewOpen} onOpenChange={setPreviewOpen} filename={sheet?.title || "fiche-de-suivi"}>
         <TrackingSheetPage
           title={sheet.title || "Sans titre"}
           periodiciteLabel={periodicite?.label ?? ""}

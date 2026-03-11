@@ -292,7 +292,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Aperçu avant impression — tout le classeur */}
-      <PrintPreview open={printOpen} onOpenChange={setPrintOpen}>
+      <PrintPreview open={printOpen} onOpenChange={setPrintOpen} filename={classeurName}>
         <ClasseurCoverPage
           classeurName={classeurName}
           classeurIcon={classeur?.icon}
@@ -366,7 +366,7 @@ export default function DashboardPage() {
       </PrintPreview>
 
       {/* Aperçu sommaire seul */}
-      <PrintPreview open={tocOpen} onOpenChange={setTocOpen}>
+      <PrintPreview open={tocOpen} onOpenChange={setTocOpen} filename={`${classeurName} — Sommaire`}>
         <TableOfContentsPage
           classeurName={classeurName}
           chapters={tocEntries.map((e) => ({ number: e.number, label: e.chapter.label, icon: e.chapter.icon, items: e.items }))}

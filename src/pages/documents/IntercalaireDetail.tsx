@@ -202,7 +202,7 @@ export default function IntercalaireDetail() {
       </div>
 
       {/* Aperçu avant impression */}
-      <PrintPreview open={previewOpen} onOpenChange={setPreviewOpen}>
+      <PrintPreview open={previewOpen} onOpenChange={setPreviewOpen} filename={page?.title || "intercalaire"}>
         <IntercalaireSheet
           title={page.title || "Sans titre"}
           description={page.description ?? ""}

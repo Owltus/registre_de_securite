@@ -204,7 +204,7 @@ export default function SignatureSheetDetail() {
       </div>
 
       {/* Aperçu avant impression */}
-      <PrintPreview open={previewOpen} onOpenChange={setPreviewOpen}>
+      <PrintPreview open={previewOpen} onOpenChange={setPreviewOpen} filename={sheet?.title || "fiche-emargement"}>
         <SignatureSheetPage
           title={sheet.title || "Sans titre"}
           subtitle={sheet.description ?? ""}

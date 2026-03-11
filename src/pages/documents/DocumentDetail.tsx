@@ -301,7 +301,7 @@ export default function DocumentDetail() {
       )}
 
       {/* Aperçu avant impression */}
-      <PrintPreview open={previewOpen} onOpenChange={setPreviewOpen}>
+      <PrintPreview open={previewOpen} onOpenChange={setPreviewOpen} filename={doc?.title || "document"}>
         <DocumentPages
           title={editTitle || "Sans titre"}
           subtitle={editDescription}
