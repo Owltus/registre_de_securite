@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, Fragment } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Plus, Printer, List, FileArchive, Database, Settings } from "lucide-react"
+import { X, Plus, Printer, List, FileArchive, Settings, FileUp, FileDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DEFAULT_REGISTRY_NAME, buildEstablishment, type ChapterRow, type ClasseurRow } from "@/lib/navigation"
@@ -11,7 +11,7 @@ import { useMutation } from "@/lib/hooks/useMutation"
 import { sqliteAdapter } from "@/lib/db/sqlite"
 import { emit, on, CHAPTERS_CHANGED, CLASSEURS_CHANGED } from "@/lib/events"
 import { IconPicker } from "@/components/IconPicker"
-import { exportClasseurZip, type ExportChapter, exportDatabase } from "@/lib/exportMarkdown"
+import { exportClasseurZip, type ExportChapter, exportClasseurJson, importClasseurJson } from "@/lib/exportMarkdown"
 import { PrintPreview } from "@/components/print/PrintPreview"
 import { ClasseurCoverPage } from "@/components/print/ClasseurCoverPage"
 import { TableOfContentsPage } from "@/components/print/TableOfContentsPage"
@@ -177,12 +177,26 @@ export default function DashboardPage() {
     }
   }
 
-  const handleExportDb = async () => {
+  const handleExportJson = async () => {
     try {
-      await exportDatabase(classeurName, Number(classeurId))
-      toast.success("Export base de données terminé")
+      const path = await exportClasseurJson(classeurName, Number(classeurId))
+      if (path) toast.success("Export JSON terminé")
     } catch {
-      toast.error("Erreur lors de l'export base de données")
+      toast.error("Erreur lors de l'export JSON")
+    }
+  }
+
+  const handleImportJson = async () => {
+    try {
+      const result = await importClasseurJson(Number(classeurId))
+      if (result) {
+        toast.success(`Import terminé : ${result.inserted} ajouté(s), ${result.updated} mis à jour, ${result.unchanged} inchangé(s)`)
+        emit(CHAPTERS_CHANGED)
+        emit(CLASSEURS_CHANGED)
+        refetchChapters()
+      }
+    } catch {
+      toast.error("Erreur lors de l'import JSON")
     }
   }
 
@@ -250,16 +264,29 @@ export default function DashboardPage() {
               <span className="text-xs text-muted-foreground">Archive ZIP contenant tous les documents</span>
             </div>
           </button>
-          <button
-            onClick={handleExportDb}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
-          >
-            <Database className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Sauvegarder (.db)</span>
-              <span className="text-xs text-muted-foreground">Fichier SQLite réimportable dans l'application</span>
-            </div>
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              disabled={!dataLoaded}
+              onClick={handleExportJson}
+              className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <FileUp className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">Exporter en JSON</span>
+                <span className="text-xs text-muted-foreground">Format lisible et modifiable</span>
+              </div>
+            </button>
+            <button
+              onClick={handleImportJson}
+              className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
+            >
+              <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">Importer un JSON</span>
+                <span className="text-xs text-muted-foreground">Merge intelligent sans suppression</span>
+              </div>
+            </button>
+          </div>
 
         </div>
       </div>

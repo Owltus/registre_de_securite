@@ -54,11 +54,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Tauri
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tauriScript: pnpm tauri
+        run: pnpm tauri build --target ${{ matrix.target }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -66,11 +62,9 @@ jobs:
           name: binaries-${{ matrix.target }}
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/dmg/*.dmg
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/registre
             src-tauri/target/release/registre.exe
 
   release:
@@ -97,30 +91,18 @@ jobs:
           VERSION="${{ steps.version.outputs.VERSION }}"
           mkdir -p release
 
-          # Windows — installeur NSIS
-          find artifacts -name "*.exe" -path "*/nsis/*" | head -1 | while read f; do
-            cp "$f" "release/registre-${VERSION}-setup.exe"
-          done
+          copy_artifact() {
+            local dest="$1"; shift
+            local src
+            src=$(find artifacts "$@" | head -1)
+            [ -n "$src" ] && cp "$src" "release/$dest"
+          }
 
-          # Windows — portable (exe brut, sans installeur)
-          find artifacts -name "registre.exe" -not -path "*/bundle/*" | head -1 | while read f; do
-            cp "$f" "release/registre.exe"
-          done
-
-          # macOS
-          find artifacts -name "*.dmg" | head -1 | while read f; do
-            cp "$f" "release/registre-${VERSION}.dmg"
-          done
-
-          # Linux .deb
-          find artifacts -name "*.deb" | head -1 | while read f; do
-            cp "$f" "release/registre-${VERSION}.deb"
-          done
-
-          # Linux AppImage
-          find artifacts -name "*.AppImage" | head -1 | while read f; do
-            cp "$f" "release/registre-${VERSION}.AppImage"
-          done
+          copy_artifact "registre-${VERSION}-setup.exe" -name "*.exe" -path "*/nsis/*"
+          copy_artifact "registre.exe"                  -name "registre.exe" -not -path "*/bundle/*"
+          copy_artifact "registre-${VERSION}.dmg"       -name "*.dmg"
+          copy_artifact "registre-${VERSION}.deb"       -name "*.deb"
+          copy_artifact "registre-${VERSION}.AppImage"  -name "*.AppImage"
 
           ls -la release/
 
@@ -164,49 +146,44 @@ jobs:
           done <<< "$COMMITS"
 
           # Construire le body
-          cat > release-notes.md << 'HEADER'
-          # Registre de Securite
+          REPO="${{ github.repository }}"
+          cat > release-notes.md <<EOF
+# Registre de Securite
 
-          ## Telecharger
-          HEADER
-          # Supprimer l'indentation du heredoc
-          sed -i 's/^          //' release-notes.md
+## Telecharger
 
-          cat >> release-notes.md << EOF
+### Windows
 
-          ### Windows
+- [registre-${VERSION}-setup.exe](https://github.com/${REPO}/releases/download/v${VERSION}/registre-${VERSION}-setup.exe) — Installeur
+- [registre.exe](https://github.com/${REPO}/releases/download/v${VERSION}/registre.exe) — Portable (sans installation)
 
-          - [registre-${VERSION}-setup.exe](https://github.com/${{ github.repository }}/releases/download/v${VERSION}/registre-${VERSION}-setup.exe) — Installeur
-          - [registre.exe](https://github.com/${{ github.repository }}/releases/download/v${VERSION}/registre.exe) — Portable (sans installation)
+### macOS
 
-          ### macOS
+- [registre-${VERSION}.dmg](https://github.com/${REPO}/releases/download/v${VERSION}/registre-${VERSION}.dmg) — Installeur
 
-          - [registre-${VERSION}.dmg](https://github.com/${{ github.repository }}/releases/download/v${VERSION}/registre-${VERSION}.dmg) — Installeur
+### Linux
 
-          ### Linux
+- [registre-${VERSION}.deb](https://github.com/${REPO}/releases/download/v${VERSION}/registre-${VERSION}.deb) — Debian / Ubuntu
+- [registre-${VERSION}.AppImage](https://github.com/${REPO}/releases/download/v${VERSION}/registre-${VERSION}.AppImage) — Toutes distributions
 
-          - [registre-${VERSION}.deb](https://github.com/${{ github.repository }}/releases/download/v${VERSION}/registre-${VERSION}.deb) — Debian / Ubuntu
-          - [registre-${VERSION}.AppImage](https://github.com/${{ github.repository }}/releases/download/v${VERSION}/registre-${VERSION}.AppImage) — Toutes distributions
+---
 
-          ---
-
-          ## Notes de mise a jour
-          EOF
-          sed -i 's/^          //' release-notes.md
+## Notes de mise a jour
+EOF
 
           if [ -n "$FEATS" ]; then
             printf "\n### Nouveautes\n\n" >> release-notes.md
-            printf "$FEATS" >> release-notes.md
+            printf '%b' "$FEATS" >> release-notes.md
           fi
 
           if [ -n "$FIXES" ]; then
             printf "\n### Corrections\n\n" >> release-notes.md
-            printf "$FIXES" >> release-notes.md
+            printf '%b' "$FIXES" >> release-notes.md
           fi
 
           if [ -n "$IMPROVEMENTS" ]; then
             printf "\n### Ameliorations\n\n" >> release-notes.md
-            printf "$IMPROVEMENTS" >> release-notes.md
+            printf '%b' "$IMPROVEMENTS" >> release-notes.md
           fi
 
           cat release-notes.md

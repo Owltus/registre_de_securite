@@ -61,49 +61,71 @@ export async function exportClasseurZip(classeurName: string, chapters: ExportCh
 }
 
 /**
- * Exporte la base de données SQLite via le dialogue "Enregistrer sous".
- * Le checkpoint WAL est exécuté côté Rust avant la copie pour garantir
- * que les fichiers -wal et -shm sont consolidés dans le .db.
- */
-export async function exportDatabase(classeurName: string, classeurId: number): Promise<string | null> {
-  const filename = sanitizeFilename(classeurName || "Classeur") + ".db"
-
-  const path = await save({
-    defaultPath: filename,
-    filters: [{ name: "Base de données SQLite", extensions: ["db"] }],
-  })
-
-  if (!path) return null
-
-  await invoke("export_database", { dest: path, classeurId })
-  return path
-}
-
-/**
- * Importe un classeur depuis un fichier .db exporté.
+ * Importe un classeur depuis un fichier .json (dialogue fichier).
  * Retourne l'ID du nouveau classeur, ou null si l'utilisateur a annulé.
  */
-export async function importDatabase(): Promise<number | null> {
+export async function importClasseur(): Promise<number | null> {
   const selected = await open({
-    filters: [{ name: "Base de données SQLite", extensions: ["db"] }],
+    filters: [{ name: "JSON", extensions: ["json"] }],
     multiple: false,
   })
 
   if (!selected) return null
 
   const path = typeof selected === "string" ? selected : String(selected)
-  const newId = await invoke<number>("import_database", { source: path })
-  return newId
+  return await invoke<number>("import_json_as_new_classeur", { path })
 }
 
 /**
- * Importe un classeur depuis des octets bruts (drag-and-drop).
- * Retourne l'ID du nouveau classeur, ou null en cas d'erreur.
+ * Importe un fichier JSON comme nouveau classeur depuis des octets bruts (drag-and-drop).
+ * Retourne l'ID du nouveau classeur.
  */
-export async function importDatabaseFromBytes(data: ArrayBuffer): Promise<number | null> {
+export async function importJsonAsNewClasseurFromBytes(data: ArrayBuffer): Promise<number> {
   const bytes = Array.from(new Uint8Array(data))
-  const newId = await invoke<number>("import_database_from_bytes", { data: bytes })
-  return newId
+  return await invoke<number>("import_json_as_new_classeur_from_bytes", { data: bytes })
+}
+
+/** Résultat du merge JSON (miroir du struct Rust) */
+export interface MergeResult {
+  inserted: number
+  updated: number
+  unchanged: number
+}
+
+/**
+ * Exporte un classeur au format JSON lisible via le dialogue "Enregistrer sous".
+ * Retourne le chemin du fichier créé, ou null si l'utilisateur a annulé.
+ */
+export async function exportClasseurJson(classeurName: string, classeurId: number): Promise<string | null> {
+  const filename = sanitizeFilename(classeurName || "Classeur") + ".json"
+
+  const path = await save({
+    defaultPath: filename,
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  })
+
+  if (!path) return null
+
+  const content = await invoke<string>("export_classeur_json", { classeurId })
+  await invoke("write_file", { path, content })
+  return path
+}
+
+/**
+ * Importe un fichier JSON dans un classeur avec merge intelligent.
+ * Retourne le résultat du merge, ou null si l'utilisateur a annulé.
+ */
+export async function importClasseurJson(classeurId: number): Promise<MergeResult | null> {
+  const selected = await open({
+    filters: [{ name: "JSON", extensions: ["json"] }],
+    multiple: false,
+  })
+
+  if (!selected) return null
+
+  const path = typeof selected === "string" ? selected : String(selected)
+  const result = await invoke<MergeResult>("import_classeur_json", { classeurId, path })
+  return result
 }
 
 /** Nettoie un titre pour en faire un nom de fichier valide */

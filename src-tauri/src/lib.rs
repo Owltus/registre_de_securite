@@ -59,9 +59,10 @@ pub fn run() {
             commands::files::read_file,
             commands::files::write_file,
             commands::files::write_file_binary,
-            commands::files::export_database,
-            commands::files::import_database,
-            commands::files::import_database_from_bytes,
+            commands::files::export_classeur_json,
+            commands::files::import_classeur_json,
+            commands::files::import_json_as_new_classeur,
+            commands::files::import_json_as_new_classeur_from_bytes,
         ])
         .setup(|app| {
             // Définir l'icône de la fenêtre (visible en dev et en build)

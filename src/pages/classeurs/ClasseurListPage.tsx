@@ -12,7 +12,7 @@ import { useMutation } from "@/lib/hooks/useMutation"
 import { sqliteAdapter } from "@/lib/db/sqlite"
 import { emit, on, CLASSEURS_CHANGED } from "@/lib/events"
 import { IconPicker } from "@/components/IconPicker"
-import { importDatabase, importDatabaseFromBytes } from "@/lib/exportMarkdown"
+import { importClasseur, importJsonAsNewClasseurFromBytes } from "@/lib/exportMarkdown"
 
 /** Chapitres par défaut à insérer dans chaque nouveau classeur */
 const DEFAULT_CHAPTERS = [
@@ -40,7 +40,7 @@ export default function ClasseurListPage() {
 
   const sortedClasseurs = [...classeurs].sort((a, b) => a.sort_order - b.sort_order)
 
-  // Drag-and-drop .db
+  // Drag-and-drop .json
   const [isDragOver, setIsDragOver] = useState(false)
   const dragCounter = useRef(0)
 
@@ -74,11 +74,11 @@ export default function ClasseurListPage() {
     dragCounter.current = 0
     setIsDragOver(false)
 
-    const file = Array.from(e.dataTransfer.files).find((f) => f.name.endsWith(".db"))
+    const file = Array.from(e.dataTransfer.files).find((f) => f.name.endsWith(".json"))
     if (!file) return
 
     const buffer = await file.arrayBuffer()
-    const newId = await importDatabaseFromBytes(buffer)
+    const newId = await importJsonAsNewClasseurFromBytes(buffer)
     handleImportResult(newId)
   }, [handleImportResult])
 
@@ -158,7 +158,7 @@ export default function ClasseurListPage() {
             </button>
             <button
               onClick={async () => {
-                const newId = await importDatabase()
+                const newId = await importClasseur()
                 handleImportResult(newId)
               }}
               onDragEnter={onDragEnter}
@@ -170,7 +170,7 @@ export default function ClasseurListPage() {
               {isDragOver ? <Upload className="h-5 w-5 text-muted-foreground shrink-0" /> : <Download className="h-5 w-5 text-muted-foreground shrink-0" />}
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium">{isDragOver ? "Déposez ici" : "Importer"}</span>
-                {!isDragOver && <span className="text-xs text-muted-foreground">Depuis un fichier .db</span>}
+                {!isDragOver && <span className="text-xs text-muted-foreground">Depuis un fichier .json</span>}
               </div>
             </button>
           </div>
