@@ -86,7 +86,6 @@ export function A4Page({
         className="pdf-prose dbg-content"
         style={{
           flex: 1,
-          overflow: "hidden",
         }}
       >
         {children}

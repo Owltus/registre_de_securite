@@ -21,7 +21,17 @@ interface DocumentPagesProps {
   themed?: boolean
 }
 
-/** Composants custom pour ReactMarkdown (sauts de page + Mermaid) */
+/** Vérifie si tous les enfants textuels d'un nœud React sont vides */
+function isEmptyHeader(children: React.ReactNode): boolean {
+  const arr = React.Children.toArray(children)
+  return arr.every((child) => {
+    if (typeof child === "string" || typeof child === "number") return String(child).trim() === ""
+    if (React.isValidElement<{ children?: React.ReactNode }>(child)) return isEmptyHeader(child.props.children)
+    return true
+  })
+}
+
+/** Composants custom pour ReactMarkdown (sauts de page + Mermaid + thead vide) */
 const markdownComponents = {
   p: ({ children }: { children?: React.ReactNode }) => {
     const text = React.Children.toArray(children)
@@ -35,6 +45,10 @@ const markdownComponents = {
       return <MermaidBlock code={String(children).trim()} />
     }
     return <code className={className}>{children}</code>
+  },
+  thead: ({ children }: { children?: React.ReactNode }) => {
+    if (isEmptyHeader(children)) return null
+    return <thead>{children}</thead>
   },
 }
 

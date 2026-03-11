@@ -34,7 +34,7 @@ function getOuterHeight(el: Element): number {
   const style = getComputedStyle(el)
   const marginTop = parseFloat(style.marginTop) || 0
   const marginBottom = parseFloat(style.marginBottom) || 0
-  return (el as HTMLElement).offsetHeight + marginTop + marginBottom
+  return el.getBoundingClientRect().height + marginTop + marginBottom
 }
 
 function isHeading(tag: string): boolean {
