@@ -18,12 +18,13 @@ interface IntercalaireCardProps {
   chapterName?: string
   classeurName?: string
   establishment?: string
+  sortableDisabled?: boolean
   onExport: (e: React.MouseEvent, page: Intercalaire) => void
   onEdit: (e: React.MouseEvent, page: Intercalaire) => void
   onDelete: (e: React.MouseEvent, page: Intercalaire) => void
 }
 
-export function IntercalaireCard({ page, chapterId, classeurId, chapterName, classeurName, establishment, onExport, onEdit, onDelete }: IntercalaireCardProps) {
+export function IntercalaireCard({ page, chapterId, classeurId, chapterName, classeurName, establishment, sortableDisabled, onExport, onEdit, onDelete }: IntercalaireCardProps) {
   const navigate = useNavigate()
 
   const dragData: IntercalaireDragData = {
@@ -43,6 +44,7 @@ export function IntercalaireCard({ page, chapterId, classeurId, chapterName, cla
   } = useSortable({
     id: `int-${page.id}`,
     data: dragData,
+    disabled: sortableDisabled,
   })
 
   const style = {
@@ -61,7 +63,8 @@ export function IntercalaireCard({ page, chapterId, classeurId, chapterName, cla
       {...attributes}
       {...listeners}
       className={cn(
-        "group relative flex flex-col rounded-lg border border-border bg-card cursor-pointer hover:border-primary/50 transition-colors touch-none overflow-hidden",
+        "group relative flex flex-col rounded-lg border border-border bg-card cursor-pointer hover:border-primary/50 transition-colors overflow-hidden",
+        !sortableDisabled && "touch-none",
         isDragging && "opacity-30 z-50"
       )}
       onClick={handleClick}
@@ -88,34 +91,36 @@ export function IntercalaireCard({ page, chapterId, classeurId, chapterName, cla
         </A4Preview>
 
         {/* Actions en surimpression, bas centré */}
-        <div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="flex items-center gap-1 rounded-md bg-background/90 border border-border shadow-sm px-1 py-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport(e, page)} aria-label="Exporter PDF">
-                  <FileDown className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Exporter PDF</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit(e, page)} aria-label="Modifier">
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Modifier</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete(e, page)} aria-label="Supprimer">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Supprimer</TooltipContent>
-            </Tooltip>
+        {!sortableDisabled && (
+          <div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1 rounded-md bg-background/90 border border-border shadow-sm px-1 py-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport(e, page)} aria-label="Exporter PDF">
+                    <FileDown className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exporter PDF</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit(e, page)} aria-label="Modifier">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Modifier</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete(e, page)} aria-label="Supprimer">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Supprimer</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

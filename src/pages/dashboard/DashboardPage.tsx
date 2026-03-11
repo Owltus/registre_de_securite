@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, Fragment } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Plus, Printer, List, FileArchive, Settings, FileUp, FileDown } from "lucide-react"
+import { X, Plus, Printer, List, FileArchive, Settings, FileUp, FileDown, Search } from "lucide-react"
+import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DEFAULT_REGISTRY_NAME, buildEstablishment, type ChapterRow, type ClasseurRow } from "@/lib/navigation"
@@ -20,7 +21,15 @@ import { DocumentPages } from "@/components/print/DocumentPages"
 import { TrackingSheetPage } from "@/components/print/TrackingSheetPage"
 import { SignatureSheetPage } from "@/components/print/SignatureSheetPage"
 import { IntercalaireSheet } from "@/components/print/IntercalaireSheet"
+import { DocumentCard } from "@/pages/chapter/DocumentCard"
+import { TrackingSheetCard } from "@/pages/chapter/TrackingSheetCard"
+import { SignatureSheetCard } from "@/pages/chapter/SignatureSheetCard"
+import { IntercalaireCard } from "@/pages/chapter/IntercalaireCard"
 import type { Doc, TrackingSheet, SignatureSheet, Intercalaire, Periodicite } from "@/pages/chapter/types"
+
+/** Retire les diacritiques et passe en minuscule pour une recherche accent-insensible */
+const stripAccents = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -77,6 +86,15 @@ export default function DashboardPage() {
 
   const sortedChapters = [...chapters].sort((a, b) => a.sort_order - b.sort_order)
 
+  // Recherche
+  const [searchInput, setSearchInput] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(stripAccents(searchInput.trim())), 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
   // Données pour le sommaire et l'impression
   const [printOpen, setPrintOpen] = useState(false)
   const [tocOpen, setTocOpen] = useState(false)
@@ -120,6 +138,77 @@ export default function DashboardPage() {
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterIdsKey])
+
+  // Map chapterId → ChapterRow pour résoudre les noms
+  const chapterMap = useMemo(() => {
+    const m = new Map<string, ChapterRow>()
+    for (const ch of sortedChapters) m.set(String(ch.id), ch)
+    return m
+  }, [sortedChapters])
+
+  // Résultats de recherche
+  type SearchResult =
+    | { kind: "document"; data: Doc; chapterId: string; chapterName: string }
+    | { kind: "tracking_sheet"; data: TrackingSheet; chapterId: string; chapterName: string }
+    | { kind: "signature_sheet"; data: SignatureSheet; chapterId: string; chapterName: string }
+    | { kind: "intercalaire"; data: Intercalaire; chapterId: string; chapterName: string }
+
+  const searchResults = useMemo<SearchResult[]>(() => {
+    if (!debouncedQuery || !dataLoaded) return []
+    const q = debouncedQuery
+    const n = stripAccents // raccourci pour normaliser les champs
+    const results: SearchResult[] = []
+
+    for (const doc of allDocs) {
+      if (
+        n(doc.title ?? "").includes(q) ||
+        n(doc.description ?? "").includes(q) ||
+        n(doc.content ?? "").includes(q)
+      ) {
+        const ch = chapterMap.get(String(doc.chapter_id))
+        results.push({ kind: "document", data: doc, chapterId: String(doc.chapter_id), chapterName: ch?.label ?? "" })
+      }
+    }
+    for (const s of allTrackingSheets) {
+      if (n(s.title ?? "").includes(q)) {
+        const ch = chapterMap.get(String(s.chapter_id))
+        results.push({ kind: "tracking_sheet", data: s, chapterId: String(s.chapter_id), chapterName: ch?.label ?? "" })
+      }
+    }
+    for (const s of allSignatureSheets) {
+      if (
+        n(s.title ?? "").includes(q) ||
+        n(s.description ?? "").includes(q)
+      ) {
+        const ch = chapterMap.get(String(s.chapter_id))
+        results.push({ kind: "signature_sheet", data: s, chapterId: String(s.chapter_id), chapterName: ch?.label ?? "" })
+      }
+    }
+    for (const g of allIntercalaires) {
+      if (
+        n(g.title ?? "").includes(q) ||
+        n(g.description ?? "").includes(q)
+      ) {
+        const ch = chapterMap.get(String(g.chapter_id))
+        results.push({ kind: "intercalaire", data: g, chapterId: String(g.chapter_id), chapterName: ch?.label ?? "" })
+      }
+    }
+    return results
+  }, [debouncedQuery, dataLoaded, allDocs, allTrackingSheets, allSignatureSheets, allIntercalaires, chapterMap])
+
+  const searchResultIds = useMemo(
+    () => searchResults.map((r) => {
+      switch (r.kind) {
+        case "document": return `document-${r.data.id}`
+        case "tracking_sheet": return `sheet-${r.data.id}`
+        case "signature_sheet": return `sig-${r.data.id}`
+        case "intercalaire": return `int-${r.data.id}`
+      }
+    }),
+    [searchResults]
+  )
+
+  const noop = () => {}
 
   const openEditDialog = () => {
     setEditValue(classeurName)
@@ -202,93 +291,193 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
-        <div className="flex flex-col gap-4 max-w-md w-full">
-
-          {/* Nouveau chapitre + Paramètres */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="flex items-center gap-4 rounded-lg border border-dashed bg-card px-5 py-4 hover:bg-accent transition-colors text-left flex-1"
-            >
-              <Plus className="h-5 w-5 text-muted-foreground shrink-0" />
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">Nouveau chapitre</span>
-                <span className="text-xs text-muted-foreground">Ajouter un chapitre au classeur</span>
-              </div>
-            </button>
-            <button
-              onClick={openEditDialog}
-              className="flex items-center justify-center rounded-lg border bg-card px-3 hover:bg-accent transition-colors shrink-0"
-              aria-label="Paramètres du classeur"
-            >
-              <Settings className="h-4 w-4 text-muted-foreground" />
-            </button>
-          </div>
-
-          {/* Sommaire + PDF */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setTocOpen(true)}
-              disabled={!dataLoaded}
-              className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
-            >
-              <List className="h-5 w-5 text-muted-foreground shrink-0" />
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">Sommaire</span>
-                <span className="text-xs text-muted-foreground">Table des matières</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setPrintOpen(true)}
-              disabled={!dataLoaded}
-              className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
-            >
-              <Printer className="h-5 w-5 text-muted-foreground shrink-0" />
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">Exporter PDF</span>
-                <span className="text-xs text-muted-foreground">Classeur complet</span>
-              </div>
-            </button>
-          </div>
-
-          <div className="border-b border-border" />
-          <button
+      {/* Barre de recherche — toujours visible */}
+      <div className="px-6 pt-6 pb-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Rechercher dans le classeur..."
+            className="pl-9"
             disabled={!dataLoaded}
-            onClick={handleExportMarkdown}
-            className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
-          >
-            <FileArchive className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Exporter en Markdown</span>
-              <span className="text-xs text-muted-foreground">Archive ZIP contenant tous les documents</span>
-            </div>
-          </button>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              disabled={!dataLoaded}
-              onClick={handleExportJson}
-              className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
-            >
-              <FileUp className="h-5 w-5 text-muted-foreground shrink-0" />
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">Exporter en JSON</span>
-                <span className="text-xs text-muted-foreground">Format lisible et modifiable</span>
-              </div>
-            </button>
-            <button
-              onClick={handleImportJson}
-              className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
-            >
-              <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">Importer un JSON</span>
-                <span className="text-xs text-muted-foreground">Merge intelligent sans suppression</span>
-              </div>
-            </button>
-          </div>
-
+          />
         </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        {debouncedQuery ? (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              {searchResults.length > 0
+                ? `${searchResults.length} résultat${searchResults.length > 1 ? "s" : ""}`
+                : "Aucun résultat"}
+            </p>
+            {searchResults.length > 0 && (
+              <SortableContext items={searchResultIds} strategy={rectSortingStrategy}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                  {searchResults.map((item) => {
+                    const chId = item.chapterId
+                    const perio = item.kind === "tracking_sheet"
+                      ? periodicites.find((p) => p.id === item.data.periodicite_id)
+                      : undefined
+                    return (
+                      <div key={`${item.kind}-${item.data.id}`} className="flex flex-col gap-1">
+                        {item.kind === "document" && (
+                          <DocumentCard
+                            doc={item.data}
+                            chapterId={chId}
+                            classeurId={classeurId}
+                            chapterName={item.chapterName}
+                            classeurName={classeurName}
+                            establishment={establishment}
+                            sortableDisabled
+                            onExport={noop}
+                            onEdit={noop}
+                            onDelete={noop}
+                          />
+                        )}
+                        {item.kind === "tracking_sheet" && (
+                          <TrackingSheetCard
+                            sheet={item.data}
+                            chapterId={chId}
+                            classeurId={classeurId}
+                            chapterName={item.chapterName}
+                            classeurName={classeurName}
+                            establishment={establishment}
+                            periodicite={perio}
+                            sortableDisabled
+                            onExport={noop}
+                            onEdit={noop}
+                            onDelete={noop}
+                          />
+                        )}
+                        {item.kind === "signature_sheet" && (
+                          <SignatureSheetCard
+                            sheet={item.data}
+                            chapterId={chId}
+                            classeurId={classeurId}
+                            chapterName={item.chapterName}
+                            classeurName={classeurName}
+                            establishment={establishment}
+                            sortableDisabled
+                            onExport={noop}
+                            onEdit={noop}
+                            onDelete={noop}
+                          />
+                        )}
+                        {item.kind === "intercalaire" && (
+                          <IntercalaireCard
+                            page={item.data}
+                            chapterId={chId}
+                            classeurId={classeurId}
+                            chapterName={item.chapterName}
+                            classeurName={classeurName}
+                            establishment={establishment}
+                            sortableDisabled
+                            onExport={noop}
+                            onEdit={noop}
+                            onDelete={noop}
+                          />
+                        )}
+                        <span className="text-xs text-muted-foreground truncate px-1">{item.chapterName}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </SortableContext>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <div className="flex flex-col gap-4 max-w-md w-full">
+
+              {/* Nouveau chapitre + Paramètres */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setCreateOpen(true)}
+                  className="flex items-center gap-4 rounded-lg border border-dashed bg-card px-5 py-4 hover:bg-accent transition-colors text-left flex-1"
+                >
+                  <Plus className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">Nouveau chapitre</span>
+                    <span className="text-xs text-muted-foreground">Ajouter un chapitre au classeur</span>
+                  </div>
+                </button>
+                <button
+                  onClick={openEditDialog}
+                  className="flex items-center justify-center rounded-lg border bg-card px-3 hover:bg-accent transition-colors shrink-0"
+                  aria-label="Paramètres du classeur"
+                >
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* Sommaire + PDF */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setTocOpen(true)}
+                  disabled={!dataLoaded}
+                  className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <List className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">Sommaire</span>
+                    <span className="text-xs text-muted-foreground">Table des matières</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setPrintOpen(true)}
+                  disabled={!dataLoaded}
+                  className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <Printer className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">Exporter PDF</span>
+                    <span className="text-xs text-muted-foreground">Classeur complet</span>
+                  </div>
+                </button>
+              </div>
+
+              <div className="border-b border-border" />
+              <button
+                disabled={!dataLoaded}
+                onClick={handleExportMarkdown}
+                className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <FileArchive className="h-5 w-5 text-muted-foreground shrink-0" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">Exporter en Markdown</span>
+                  <span className="text-xs text-muted-foreground">Archive ZIP contenant tous les documents</span>
+                </div>
+              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  disabled={!dataLoaded}
+                  onClick={handleExportJson}
+                  className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <FileUp className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">Exporter en JSON</span>
+                    <span className="text-xs text-muted-foreground">Format lisible et modifiable</span>
+                  </div>
+                </button>
+                <button
+                  onClick={handleImportJson}
+                  className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
+                >
+                  <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">Importer un JSON</span>
+                    <span className="text-xs text-muted-foreground">Merge intelligent sans suppression</span>
+                  </div>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Aperçu avant impression — tout le classeur */}

@@ -18,12 +18,13 @@ interface SignatureSheetCardProps {
   chapterName?: string
   classeurName?: string
   establishment?: string
+  sortableDisabled?: boolean
   onExport: (e: React.MouseEvent, sheet: SignatureSheet) => void
   onEdit: (e: React.MouseEvent, sheet: SignatureSheet) => void
   onDelete: (e: React.MouseEvent, sheet: SignatureSheet) => void
 }
 
-export function SignatureSheetCard({ sheet, chapterId, classeurId, chapterName, classeurName, establishment, onExport, onEdit, onDelete }: SignatureSheetCardProps) {
+export function SignatureSheetCard({ sheet, chapterId, classeurId, chapterName, classeurName, establishment, sortableDisabled, onExport, onEdit, onDelete }: SignatureSheetCardProps) {
   const navigate = useNavigate()
 
   const dragData: SignatureSheetDragData = {
@@ -43,6 +44,7 @@ export function SignatureSheetCard({ sheet, chapterId, classeurId, chapterName, 
   } = useSortable({
     id: `sig-${sheet.id}`,
     data: dragData,
+    disabled: sortableDisabled,
   })
 
   const style = {
@@ -61,7 +63,8 @@ export function SignatureSheetCard({ sheet, chapterId, classeurId, chapterName, 
       {...attributes}
       {...listeners}
       className={cn(
-        "group relative flex flex-col rounded-lg border border-border bg-card cursor-pointer hover:border-primary/50 transition-colors touch-none overflow-hidden",
+        "group relative flex flex-col rounded-lg border border-border bg-card cursor-pointer hover:border-primary/50 transition-colors overflow-hidden",
+        !sortableDisabled && "touch-none",
         isDragging && "opacity-30 z-50"
       )}
       onClick={handleClick}
@@ -89,34 +92,36 @@ export function SignatureSheetCard({ sheet, chapterId, classeurId, chapterName, 
         </A4Preview>
 
         {/* Actions en surimpression, bas centré */}
-        <div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="flex items-center gap-1 rounded-md bg-background/90 border border-border shadow-sm px-1 py-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport(e, sheet)} aria-label="Exporter PDF">
-                  <FileDown className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Exporter PDF</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit(e, sheet)} aria-label="Modifier">
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Modifier</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete(e, sheet)} aria-label="Supprimer">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Supprimer</TooltipContent>
-            </Tooltip>
+        {!sortableDisabled && (
+          <div className="absolute bottom-2 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1 rounded-md bg-background/90 border border-border shadow-sm px-1 py-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport(e, sheet)} aria-label="Exporter PDF">
+                    <FileDown className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exporter PDF</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit(e, sheet)} aria-label="Modifier">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Modifier</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete(e, sheet)} aria-label="Supprimer">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Supprimer</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

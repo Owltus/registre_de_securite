@@ -110,45 +110,33 @@ jobs:
         id: notes
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
+          CURRENT_TAG="${GITHUB_REF#refs/tags/}"
 
           # Trouver le tag precedent
           PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
           if [ -z "$PREV_TAG" ]; then
-            RANGE="HEAD"
+            RANGE="$CURRENT_TAG"
           else
-            RANGE="${PREV_TAG}..HEAD"
+            RANGE="${PREV_TAG}..${CURRENT_TAG}"
           fi
 
-          # Collecter les commits (hors release/bump)
-          COMMITS=$(git log "$RANGE" --pretty=format:"%s" --no-merges \
-            | grep -v "^build: release" \
-            | grep -v "^chore: release" || true)
+          echo "DEBUG: CURRENT_TAG=$CURRENT_TAG PREV_TAG=$PREV_TAG"
+          echo "DEBUG: RANGE=$RANGE"
+          echo "DEBUG: commits found=$(git log "$RANGE" --oneline --no-merges | wc -l)"
 
-          # Parser les commits par categorie
-          FEATS=""
-          FIXES=""
-          IMPROVEMENTS=""
+          # Parser les commits par categorie (|| true evite l'echec si grep ne matche rien)
+          FEATS=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep "^feat" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //' | sed 's/^./\U&/' || true)
+          FIXES=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep "^fix" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //' | sed 's/^./\U&/' || true)
+          OTHERS=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep -v "^feat" | grep -v "^fix" | grep -v "^build: release" | grep -v "^chore: release" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //' | sed 's/^./\U&/' || true)
 
-          while IFS= read -r line; do
-            [ -z "$line" ] && continue
-            # Retirer le prefixe type(scope):
-            MSG=$(echo "$line" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //')
-            # Premiere lettre en majuscule
-            MSG="$(echo "$MSG" | sed 's/^./\U&/')"
-
-            if echo "$line" | grep -q "^feat"; then
-              FEATS="${FEATS}- ${MSG}\n"
-            elif echo "$line" | grep -q "^fix"; then
-              FIXES="${FIXES}- ${MSG}\n"
-            else
-              IMPROVEMENTS="${IMPROVEMENTS}- ${MSG}\n"
-            fi
-          done <<< "$COMMITS"
+          echo "DEBUG: FEATS='$FEATS'"
+          echo "DEBUG: FIXES='$FIXES'"
+          echo "DEBUG: OTHERS='$OTHERS'"
 
           # Construire le body
           REPO="${{ github.repository }}"
           cat > release-notes.md <<EOF
-# Registre de Securite
+# Registre
 
 ## Telecharger
 
@@ -173,17 +161,17 @@ EOF
 
           if [ -n "$FEATS" ]; then
             printf "\n### Nouveautes\n\n" >> release-notes.md
-            printf '%b' "$FEATS" >> release-notes.md
+            echo "$FEATS" | sed 's/^/- /' >> release-notes.md
           fi
 
           if [ -n "$FIXES" ]; then
             printf "\n### Corrections\n\n" >> release-notes.md
-            printf '%b' "$FIXES" >> release-notes.md
+            echo "$FIXES" | sed 's/^/- /' >> release-notes.md
           fi
 
-          if [ -n "$IMPROVEMENTS" ]; then
+          if [ -n "$OTHERS" ]; then
             printf "\n### Ameliorations\n\n" >> release-notes.md
-            printf '%b' "$IMPROVEMENTS" >> release-notes.md
+            echo "$OTHERS" | sed 's/^/- /' >> release-notes.md
           fi
 
           cat release-notes.md
