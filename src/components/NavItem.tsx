@@ -27,10 +27,10 @@ export function NavItem({ item, responsive = false, onClick }: NavItemProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id, data: { type: "chapter", chapterId: item.id } })
+  } = useSortable({ id: item.id, data: { type: "chapter", chapterId: item.id, label: item.label, icon: item.iconName } })
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
   }
 
@@ -63,7 +63,7 @@ export function NavItem({ item, responsive = false, onClick }: NavItemProps) {
           {...listeners}
           className={cn(
             "touch-none rounded-lg",
-            isDragging && "z-50 opacity-80",
+            isDragging && "z-50 opacity-30",
             isItemOver && "ring-2 ring-primary bg-primary/10"
           )}
         >

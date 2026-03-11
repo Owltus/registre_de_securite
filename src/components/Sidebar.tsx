@@ -90,6 +90,7 @@ export function Sidebar({ mobile = false, open = false, onClose, onOpenSettings 
         path: classeurId ? `/classeurs/${classeurId}/chapitres/${ch.id}` : `/chapitres/${ch.id}`,
         label: ch.label,
         icon: getChapterIcon(ch.icon),
+        iconName: ch.icon,
       })),
     [localOrder, classeurId]
   )

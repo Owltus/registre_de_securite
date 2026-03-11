@@ -6,6 +6,8 @@ import type { DragEndEvent, UniqueIdentifier } from "@dnd-kit/core"
 export interface ChapterDragData {
   type: "chapter"
   chapterId: string
+  label: string
+  icon: string
 }
 
 export interface DocumentDragData {
@@ -36,7 +38,15 @@ export interface IntercalaireDragData {
   sourceChapterId: string
 }
 
-export type DragData = ChapterDragData | DocumentDragData | TrackingSheetDragData | SignatureSheetDragData | IntercalaireDragData
+export interface ClasseurDragData {
+  type: "classeur"
+  classeurId: number
+  title: string
+  icon: string
+  subtitle: string
+}
+
+export type DragData = ChapterDragData | DocumentDragData | TrackingSheetDragData | SignatureSheetDragData | IntercalaireDragData | ClasseurDragData
 
 export type DragHandler = (event: DragEndEvent) => void
 

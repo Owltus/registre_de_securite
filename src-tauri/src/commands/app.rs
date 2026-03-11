@@ -32,8 +32,7 @@ pub fn get_db_url(state: State<AppState>) -> String {
 /// Ouvre le dossier contenant la base de données dans l'explorateur de fichiers
 #[tauri::command]
 pub fn open_db_folder(state: State<AppState>) -> Result<(), String> {
-    let db_url = &state.db_url;
-    let path = db_url.strip_prefix("sqlite:").unwrap_or(db_url);
+    let path = state.db_path();
     let folder = std::path::Path::new(path)
         .parent()
         .ok_or("impossible de résoudre le dossier parent")?;

@@ -9,6 +9,8 @@ export interface NavItemData {
   path: string
   label: string
   icon: LucideIcon
+  /** Nom de l'icône (string) — utilisé pour le DragOverlay */
+  iconName: string
 }
 
 /** Statut de conformité d'un chapitre */

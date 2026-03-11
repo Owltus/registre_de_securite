@@ -116,8 +116,7 @@ pub async fn export_classeur_json(
     state: State<'_, AppState>,
     classeur_id: i64,
 ) -> Result<String, AppError> {
-    let db_url = &state.db_url;
-    let db_path = db_url.strip_prefix("sqlite:").unwrap_or(db_url).to_string();
+    let db_path = state.db_path().to_string();
 
     let json = tokio::task::spawn_blocking(move || {
         let conn = rusqlite::Connection::open_with_flags(
@@ -147,7 +146,83 @@ pub async fn export_classeur_json(
             .filter_map(|r| r.ok())
             .collect();
 
-        // Gérer les collisions de slugs
+        // Charger tous les items en 4 requêtes bulk, groupés par chapter_id
+        let ch_ids: Vec<String> = chapters_raw.iter().map(|(id, ..)| id.to_string()).collect();
+        let placeholders = ch_ids.iter().map(|id| format!("'{}'", id.replace('\'', "''"))).collect::<Vec<_>>().join(",");
+
+        let mut items_by_chapter: HashMap<String, Vec<ItemJson>> = HashMap::new();
+
+        if !ch_ids.is_empty() {
+            // Documents
+            let mut s = conn.prepare(&format!(
+                "SELECT chapter_id, title, description, content, sort_order FROM documents WHERE chapter_id IN ({placeholders}) ORDER BY sort_order"
+            )).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+            let rows = s.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, ItemJson {
+                    kind: "document".to_string(),
+                    title: row.get(1)?,
+                    description: row.get(2)?,
+                    content: row.get(3)?,
+                    periodicite_id: None,
+                    nombre: None,
+                    sort_order: row.get(4)?,
+                }))
+            }).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+            for r in rows { if let Ok((cid, item)) = r { items_by_chapter.entry(cid).or_default().push(item); } }
+
+            // Feuilles de suivi
+            let mut s = conn.prepare(&format!(
+                "SELECT chapter_id, title, periodicite_id, sort_order FROM tracking_sheets WHERE chapter_id IN ({placeholders}) ORDER BY sort_order"
+            )).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+            let rows = s.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, ItemJson {
+                    kind: "tracking_sheet".to_string(),
+                    title: row.get(1)?,
+                    description: None,
+                    content: None,
+                    periodicite_id: row.get(2)?,
+                    nombre: None,
+                    sort_order: row.get(3)?,
+                }))
+            }).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+            for r in rows { if let Ok((cid, item)) = r { items_by_chapter.entry(cid).or_default().push(item); } }
+
+            // Feuilles de signature
+            let mut s = conn.prepare(&format!(
+                "SELECT chapter_id, title, description, nombre, sort_order FROM signature_sheets WHERE chapter_id IN ({placeholders}) ORDER BY sort_order"
+            )).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+            let rows = s.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, ItemJson {
+                    kind: "signature_sheet".to_string(),
+                    title: row.get(1)?,
+                    description: row.get(2)?,
+                    content: None,
+                    periodicite_id: None,
+                    nombre: row.get(3)?,
+                    sort_order: row.get(4)?,
+                }))
+            }).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+            for r in rows { if let Ok((cid, item)) = r { items_by_chapter.entry(cid).or_default().push(item); } }
+
+            // Intercalaires
+            let mut s = conn.prepare(&format!(
+                "SELECT chapter_id, title, description, sort_order FROM intercalaires WHERE chapter_id IN ({placeholders}) ORDER BY sort_order"
+            )).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+            let rows = s.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, ItemJson {
+                    kind: "intercalaire".to_string(),
+                    title: row.get(1)?,
+                    description: row.get(2)?,
+                    content: None,
+                    periodicite_id: None,
+                    nombre: None,
+                    sort_order: row.get(3)?,
+                }))
+            }).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+            for r in rows { if let Ok((cid, item)) = r { items_by_chapter.entry(cid).or_default().push(item); } }
+        }
+
+        // Assembler les chapitres avec leurs items
         let mut slug_counts: HashMap<String, u32> = HashMap::new();
         let mut chapter_jsons = Vec::new();
 
@@ -161,84 +236,7 @@ pub async fn export_classeur_json(
                 format!("{}-{}", base_slug, count)
             };
 
-            let ch_id_str = ch_id.to_string();
-            let mut items = Vec::new();
-
-            // Documents
-            {
-                let mut s = conn.prepare(
-                    "SELECT title, description, content, sort_order FROM documents WHERE chapter_id = ?1 ORDER BY sort_order"
-                ).map_err(|e| AppError::DatabaseError(e.to_string()))?;
-                let rows = s.query_map([&ch_id_str], |row| {
-                    Ok(ItemJson {
-                        kind: "document".to_string(),
-                        title: row.get(0)?,
-                        description: row.get(1)?,
-                        content: row.get(2)?,
-                        periodicite_id: None,
-                        nombre: None,
-                        sort_order: row.get(3)?,
-                    })
-                }).map_err(|e| AppError::DatabaseError(e.to_string()))?;
-                for r in rows { if let Ok(item) = r { items.push(item); } }
-            }
-
-            // Feuilles de suivi
-            {
-                let mut s = conn.prepare(
-                    "SELECT title, periodicite_id, sort_order FROM tracking_sheets WHERE chapter_id = ?1 ORDER BY sort_order"
-                ).map_err(|e| AppError::DatabaseError(e.to_string()))?;
-                let rows = s.query_map([&ch_id_str], |row| {
-                    Ok(ItemJson {
-                        kind: "tracking_sheet".to_string(),
-                        title: row.get(0)?,
-                        description: None,
-                        content: None,
-                        periodicite_id: row.get(1)?,
-                        nombre: None,
-                        sort_order: row.get(2)?,
-                    })
-                }).map_err(|e| AppError::DatabaseError(e.to_string()))?;
-                for r in rows { if let Ok(item) = r { items.push(item); } }
-            }
-
-            // Feuilles de signature
-            {
-                let mut s = conn.prepare(
-                    "SELECT title, description, nombre, sort_order FROM signature_sheets WHERE chapter_id = ?1 ORDER BY sort_order"
-                ).map_err(|e| AppError::DatabaseError(e.to_string()))?;
-                let rows = s.query_map([&ch_id_str], |row| {
-                    Ok(ItemJson {
-                        kind: "signature_sheet".to_string(),
-                        title: row.get(0)?,
-                        description: row.get(1)?,
-                        content: None,
-                        periodicite_id: None,
-                        nombre: row.get(2)?,
-                        sort_order: row.get(3)?,
-                    })
-                }).map_err(|e| AppError::DatabaseError(e.to_string()))?;
-                for r in rows { if let Ok(item) = r { items.push(item); } }
-            }
-
-            // Intercalaires
-            {
-                let mut s = conn.prepare(
-                    "SELECT title, description, sort_order FROM intercalaires WHERE chapter_id = ?1 ORDER BY sort_order"
-                ).map_err(|e| AppError::DatabaseError(e.to_string()))?;
-                let rows = s.query_map([&ch_id_str], |row| {
-                    Ok(ItemJson {
-                        kind: "intercalaire".to_string(),
-                        title: row.get(0)?,
-                        description: row.get(1)?,
-                        content: None,
-                        periodicite_id: None,
-                        nombre: None,
-                        sort_order: row.get(2)?,
-                    })
-                }).map_err(|e| AppError::DatabaseError(e.to_string()))?;
-                for r in rows { if let Ok(item) = r { items.push(item); } }
-            }
+            let items = items_by_chapter.remove(&ch_id.to_string()).unwrap_or_default();
 
             chapter_jsons.push(ChapterJson {
                 uid,
@@ -357,8 +355,7 @@ pub async fn import_json_as_new_classeur(
     state: State<'_, AppState>,
     path: String,
 ) -> Result<i64, AppError> {
-    let db_url = &state.db_url;
-    let db_path = db_url.strip_prefix("sqlite:").unwrap_or(db_url).to_string();
+    let db_path = state.db_path().to_string();
 
     let new_id = tokio::task::spawn_blocking(move || {
         let content = std::fs::read_to_string(&path)
@@ -378,8 +375,7 @@ pub async fn import_json_as_new_classeur_from_bytes(
     state: State<'_, AppState>,
     data: Vec<u8>,
 ) -> Result<i64, AppError> {
-    let db_url = &state.db_url;
-    let db_path = db_url.strip_prefix("sqlite:").unwrap_or(db_url).to_string();
+    let db_path = state.db_path().to_string();
 
     let new_id = tokio::task::spawn_blocking(move || {
         let content = String::from_utf8(data)
@@ -400,8 +396,7 @@ pub async fn import_classeur_json(
     classeur_id: i64,
     path: String,
 ) -> Result<MergeResult, AppError> {
-    let db_url = &state.db_url;
-    let db_path = db_url.strip_prefix("sqlite:").unwrap_or(db_url).to_string();
+    let db_path = state.db_path().to_string();
 
     let result = tokio::task::spawn_blocking(move || {
         // Lire et désérialiser le fichier JSON

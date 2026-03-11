@@ -21,4 +21,9 @@ impl AppState {
             db_url,
         }
     }
+
+    /// Retourne le chemin du fichier SQLite (sans le préfixe "sqlite:")
+    pub fn db_path(&self) -> &str {
+        self.db_url.strip_prefix("sqlite:").unwrap_or(&self.db_url)
+    }
 }

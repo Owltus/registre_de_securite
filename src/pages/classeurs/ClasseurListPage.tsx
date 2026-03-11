@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
 import { Plus, X, Trash2, Download, Upload } from "lucide-react"
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import type { DragEndEvent } from "@dnd-kit/core"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +14,7 @@ import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
 import { sqliteAdapter } from "@/lib/db/sqlite"
 import { emit, on, CLASSEURS_CHANGED } from "@/lib/events"
+import { useDndRegistry } from "@/lib/dnd/useDndRegistry"
 import { IconPicker } from "@/components/IconPicker"
 import { importClasseur, importJsonAsNewClasseurFromBytes } from "@/lib/exportMarkdown"
 
@@ -32,13 +36,127 @@ async function insertDefaultChapters(classeurId: number) {
   }
 }
 
+/** Carte de classeur réordonnnable par drag-and-drop */
+function SortableClasseurCard({
+  classeur,
+  icon: Icon,
+  onNavigate,
+  onDelete,
+}: {
+  classeur: ClasseurRow
+  icon: React.ComponentType<{ className?: string }>
+  onNavigate: () => void
+  onDelete: () => void
+}) {
+  const subtitle = [classeur.etablissement, classeur.etablissement_complement].filter(Boolean).join(" · ")
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: classeur.id,
+    data: { type: "classeur", classeurId: classeur.id, title: classeur.name, icon: classeur.icon, subtitle },
+  })
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`touch-none ${isDragging ? "z-50 opacity-30" : ""}`}
+    >
+      <button
+        onClick={onNavigate}
+        className="group flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left w-full"
+      >
+        <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1 min-h-[2.5rem] justify-center">
+          <span className="text-sm font-medium truncate">{classeur.name}</span>
+          {subtitle && <span className="text-xs text-muted-foreground truncate">{subtitle}</span>}
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              role="button"
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              aria-label="Supprimer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Supprimer</TooltipContent>
+        </Tooltip>
+      </button>
+    </div>
+  )
+}
+
 export default function ClasseurListPage() {
   const navigate = useNavigate()
   const { data: classeurs, refetch } = useQuery<ClasseurRow>("classeurs")
-  const { insert, remove } = useMutation("classeurs")
+  const { insert, remove, update } = useMutation("classeurs")
   useEffect(() => on(CLASSEURS_CHANGED, refetch), [refetch])
 
-  const sortedClasseurs = [...classeurs].sort((a, b) => a.sort_order - b.sort_order)
+  const sortedClasseurs = useMemo(
+    () => [...classeurs].sort((a, b) => a.sort_order - b.sort_order),
+    [classeurs]
+  )
+
+  // État local optimiste pour le drag-and-drop
+  const [localClasseurs, setLocalClasseurs] = useState<ClasseurRow[]>([])
+  useEffect(() => { setLocalClasseurs(sortedClasseurs) }, [sortedClasseurs])
+
+  // Ref stable pour éviter de recréer le handler à chaque changement de localClasseurs
+  const localClasseursRef = useRef(localClasseurs)
+  useEffect(() => { localClasseursRef.current = localClasseurs }, [localClasseurs])
+
+  // Handler de réordonnancement DnD
+  const dndRegistry = useDndRegistry()
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+
+      const items = localClasseursRef.current
+      const oldIndex = items.findIndex((c) => c.id === active.id)
+      const newIndex = items.findIndex((c) => c.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      // 1. Mise à jour optimiste
+      const reordered = [...items]
+      const [moved] = reordered.splice(oldIndex, 1)
+      reordered.splice(newIndex, 0, moved)
+      setLocalClasseurs(reordered)
+
+      // 2. Persister en DB
+      Promise.all(
+        reordered.map((cl, i) =>
+          update(String(cl.id), { sort_order: i + 1 })
+        )
+      ).then(() => {
+        emit(CLASSEURS_CHANGED)
+        refetch()
+      })
+    },
+    [update, refetch]
+  )
+
+  useEffect(() => {
+    dndRegistry.registerHandler("classeur", handleDragEnd)
+    return () => dndRegistry.unregisterHandler("classeur")
+  }, [dndRegistry, handleDragEnd])
 
   // Drag-and-drop .json
   const [isDragOver, setIsDragOver] = useState(false)
@@ -175,44 +293,28 @@ export default function ClasseurListPage() {
             </button>
           </div>
 
-          {sortedClasseurs.length > 0 && <div className="border-b border-border" />}
+          {localClasseurs.length > 0 && <div className="border-b border-border" />}
 
           {/* Liste des classeurs */}
-          {sortedClasseurs.length === 0 ? (
+          {localClasseurs.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center">
               Aucun classeur. Créez-en un pour commencer.
             </p>
           ) : (
-            sortedClasseurs.map((cl) => {
-              const Icon = getChapterIcon(cl.icon)
-              const subtitle = [cl.etablissement, cl.etablissement_complement].filter(Boolean).join(" · ")
-              return (
-                <button
+            <SortableContext
+              items={localClasseurs.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {localClasseurs.map((cl) => (
+                <SortableClasseurCard
                   key={cl.id}
-                  onClick={() => navigate(`/classeurs/${cl.id}`)}
-                  className="group flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
-                >
-                  <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1 min-h-[2.5rem] justify-center">
-                    <span className="text-sm font-medium truncate">{cl.name}</span>
-                    {subtitle && <span className="text-xs text-muted-foreground truncate">{subtitle}</span>}
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        role="button"
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(cl) }}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                        aria-label="Supprimer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Supprimer</TooltipContent>
-                  </Tooltip>
-                </button>
-              )
-            })
+                  classeur={cl}
+                  icon={getChapterIcon(cl.icon)}
+                  onNavigate={() => navigate(`/classeurs/${cl.id}`)}
+                  onDelete={() => setDeleteTarget(cl)}
+                />
+              ))}
+            </SortableContext>
           )}
         </div>
       </div>
