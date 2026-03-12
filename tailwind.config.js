@@ -38,6 +38,11 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        status: {
+          success: { DEFAULT: "hsl(var(--status-success))", bg: "hsl(var(--status-success-bg))" },
+          warning: { DEFAULT: "hsl(var(--status-warning))", bg: "hsl(var(--status-warning-bg))" },
+          danger:  { DEFAULT: "hsl(var(--status-danger))",  bg: "hsl(var(--status-danger-bg))"  },
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

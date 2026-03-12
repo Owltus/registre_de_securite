@@ -24,6 +24,12 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+    --status-success:    142 76% 36%;
+    --status-success-bg: 142 76% 95%;
+    --status-warning:    38 92% 50%;
+    --status-warning-bg: 38 92% 95%;
+    --status-danger:     0 84% 60%;
+    --status-danger-bg:  0 84% 95%;
   }
 
   .dark {
@@ -46,6 +52,12 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    --status-success:    142 69% 58%;
+    --status-success-bg: 142 76% 12%;
+    --status-warning:    38 92% 67%;
+    --status-warning-bg: 38 92% 12%;
+    --status-danger:     0 62.8% 55%;
+    --status-danger-bg:  0 84% 12%;
   }
 }
 

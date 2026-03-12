@@ -62,9 +62,9 @@ export function computeStatus(docCount: number): ChapterStatus {
 
 /** Configuration d'affichage des statuts */
 export const statusConfig: Record<ChapterStatus, { label: string; className: string }> = {
-  conforme: { label: "Conforme", className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
-  a_verifier: { label: "À vérifier", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" },
-  non_conforme: { label: "Non conforme", className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" },
+  conforme:     { label: "Conforme",     className: "bg-status-success-bg text-status-success" },
+  a_verifier:   { label: "À vérifier",   className: "bg-status-warning-bg text-status-warning" },
+  non_conforme: { label: "Non conforme", className: "bg-status-danger-bg text-status-danger"   },
 }
 
 /** Formate une date en français court */

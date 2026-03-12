@@ -183,7 +183,7 @@ export function RootLayout() {
                 <button
                   onClick={() => appWindow.close()}
                   aria-label="Fermer"
-                  className="inline-flex h-8 w-10 items-center justify-center rounded-sm text-muted-foreground hover:bg-red-500 hover:text-white"
+                  className="inline-flex h-8 w-10 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
                 >
                   <X className="h-4 w-4" />
                 </button>
