@@ -19,9 +19,9 @@ interface IntercalaireCardProps {
   classeurName?: string
   establishment?: string
   sortableDisabled?: boolean
-  onExport: (e: React.MouseEvent, page: Intercalaire) => void
-  onEdit: (e: React.MouseEvent, page: Intercalaire) => void
-  onDelete: (e: React.MouseEvent, page: Intercalaire) => void
+  onExport?: (e: React.MouseEvent, page: Intercalaire) => void
+  onEdit?: (e: React.MouseEvent, page: Intercalaire) => void
+  onDelete?: (e: React.MouseEvent, page: Intercalaire) => void
 }
 
 export function IntercalaireCard({ page, chapterId, classeurId, chapterName, classeurName, establishment, sortableDisabled, onExport, onEdit, onDelete }: IntercalaireCardProps) {
@@ -96,7 +96,7 @@ export function IntercalaireCard({ page, chapterId, classeurId, chapterName, cla
             <div className="flex items-center gap-1 rounded-md bg-background/90 border border-border shadow-sm px-1 py-0.5">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport(e, page)} aria-label="Exporter PDF">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport?.(e, page)} aria-label="Exporter PDF">
                     <FileDown className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
@@ -104,7 +104,7 @@ export function IntercalaireCard({ page, chapterId, classeurId, chapterName, cla
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit(e, page)} aria-label="Modifier">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit?.(e, page)} aria-label="Modifier">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
@@ -112,7 +112,7 @@ export function IntercalaireCard({ page, chapterId, classeurId, chapterName, cla
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete(e, page)} aria-label="Supprimer">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete?.(e, page)} aria-label="Supprimer">
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>

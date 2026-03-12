@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
 import { X, Plus, Printer, List, FileArchive, Settings, FileUp, FileDown, Search } from "lucide-react"
-import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DEFAULT_REGISTRY_NAME, buildEstablishment, type ChapterRow, type ClasseurRow } from "@/lib/navigation"
@@ -30,6 +29,12 @@ import type { Doc, TrackingSheet, SignatureSheet, Intercalaire, Periodicite } fr
 /** Retire les diacritiques et passe en minuscule pour une recherche accent-insensible */
 const stripAccents = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+
+type SearchResult =
+  | { kind: "document"; data: Doc; chapterId: string; chapterName: string }
+  | { kind: "tracking_sheet"; data: TrackingSheet; chapterId: string; chapterName: string }
+  | { kind: "signature_sheet"; data: SignatureSheet; chapterId: string; chapterName: string }
+  | { kind: "intercalaire"; data: Intercalaire; chapterId: string; chapterName: string }
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -84,7 +89,7 @@ export default function DashboardPage() {
     navigate(`/classeurs/${classeurId}/chapitres/${newId}`)
   }
 
-  const sortedChapters = [...chapters].sort((a, b) => a.sort_order - b.sort_order)
+  const sortedChapters = useMemo(() => [...chapters].sort((a, b) => a.sort_order - b.sort_order), [chapters])
 
   // Recherche
   const [searchInput, setSearchInput] = useState("")
@@ -147,12 +152,6 @@ export default function DashboardPage() {
   }, [sortedChapters])
 
   // Résultats de recherche
-  type SearchResult =
-    | { kind: "document"; data: Doc; chapterId: string; chapterName: string }
-    | { kind: "tracking_sheet"; data: TrackingSheet; chapterId: string; chapterName: string }
-    | { kind: "signature_sheet"; data: SignatureSheet; chapterId: string; chapterName: string }
-    | { kind: "intercalaire"; data: Intercalaire; chapterId: string; chapterName: string }
-
   const searchResults = useMemo<SearchResult[]>(() => {
     if (!debouncedQuery || !dataLoaded) return []
     const q = debouncedQuery
@@ -195,20 +194,6 @@ export default function DashboardPage() {
     }
     return results
   }, [debouncedQuery, dataLoaded, allDocs, allTrackingSheets, allSignatureSheets, allIntercalaires, chapterMap])
-
-  const searchResultIds = useMemo(
-    () => searchResults.map((r) => {
-      switch (r.kind) {
-        case "document": return `document-${r.data.id}`
-        case "tracking_sheet": return `sheet-${r.data.id}`
-        case "signature_sheet": return `sig-${r.data.id}`
-        case "intercalaire": return `int-${r.data.id}`
-      }
-    }),
-    [searchResults]
-  )
-
-  const noop = () => {}
 
   const openEditDialog = () => {
     setEditValue(classeurName)
@@ -314,7 +299,6 @@ export default function DashboardPage() {
                 : "Aucun résultat"}
             </p>
             {searchResults.length > 0 && (
-              <SortableContext items={searchResultIds} strategy={rectSortingStrategy}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
                   {searchResults.map((item) => {
                     const chId = item.chapterId
@@ -332,9 +316,7 @@ export default function DashboardPage() {
                             classeurName={classeurName}
                             establishment={establishment}
                             sortableDisabled
-                            onExport={noop}
-                            onEdit={noop}
-                            onDelete={noop}
+
                           />
                         )}
                         {item.kind === "tracking_sheet" && (
@@ -347,9 +329,7 @@ export default function DashboardPage() {
                             establishment={establishment}
                             periodicite={perio}
                             sortableDisabled
-                            onExport={noop}
-                            onEdit={noop}
-                            onDelete={noop}
+
                           />
                         )}
                         {item.kind === "signature_sheet" && (
@@ -361,9 +341,7 @@ export default function DashboardPage() {
                             classeurName={classeurName}
                             establishment={establishment}
                             sortableDisabled
-                            onExport={noop}
-                            onEdit={noop}
-                            onDelete={noop}
+
                           />
                         )}
                         {item.kind === "intercalaire" && (
@@ -375,9 +353,7 @@ export default function DashboardPage() {
                             classeurName={classeurName}
                             establishment={establishment}
                             sortableDisabled
-                            onExport={noop}
-                            onEdit={noop}
-                            onDelete={noop}
+
                           />
                         )}
                         <span className="text-xs text-muted-foreground truncate px-1">{item.chapterName}</span>
@@ -385,7 +361,6 @@ export default function DashboardPage() {
                     )
                   })}
                 </div>
-              </SortableContext>
             )}
           </div>
         ) : (

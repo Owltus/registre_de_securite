@@ -20,9 +20,9 @@ interface TrackingSheetCardProps {
   establishment?: string
   periodicite?: Periodicite
   sortableDisabled?: boolean
-  onExport: (e: React.MouseEvent, sheet: TrackingSheet) => void
-  onEdit: (e: React.MouseEvent, sheet: TrackingSheet) => void
-  onDelete: (e: React.MouseEvent, sheet: TrackingSheet) => void
+  onExport?: (e: React.MouseEvent, sheet: TrackingSheet) => void
+  onEdit?: (e: React.MouseEvent, sheet: TrackingSheet) => void
+  onDelete?: (e: React.MouseEvent, sheet: TrackingSheet) => void
 }
 
 export function TrackingSheetCard({ sheet, chapterId, classeurId, chapterName, classeurName, establishment, periodicite, sortableDisabled, onExport, onEdit, onDelete }: TrackingSheetCardProps) {
@@ -98,7 +98,7 @@ export function TrackingSheetCard({ sheet, chapterId, classeurId, chapterName, c
             <div className="flex items-center gap-1 rounded-md bg-background/90 border border-border shadow-sm px-1 py-0.5">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport(e, sheet)} aria-label="Exporter PDF">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onExport?.(e, sheet)} aria-label="Exporter PDF">
                     <FileDown className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
@@ -106,7 +106,7 @@ export function TrackingSheetCard({ sheet, chapterId, classeurId, chapterName, c
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit(e, sheet)} aria-label="Modifier">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onEdit?.(e, sheet)} aria-label="Modifier">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
@@ -114,7 +114,7 @@ export function TrackingSheetCard({ sheet, chapterId, classeurId, chapterName, c
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete(e, sheet)} aria-label="Supprimer">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => onDelete?.(e, sheet)} aria-label="Supprimer">
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
