@@ -210,7 +210,7 @@ export function RootLayout() {
         {!isClasseurList && <Sidebar mobile open={mobileOpen} onClose={() => setMobileOpen(false)} onOpenSettings={() => setSettingsOpen(true)} />}
       </div>
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} classeurId={classeurId ? Number(classeurId) : undefined} classeurName={displayName} />
     </div>
   )
 }

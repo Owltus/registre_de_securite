@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react"
-import { Sun, Moon, Palette, Info, X, Database, FolderOpen } from "lucide-react"
+import { Sun, Moon, Palette, Info, X, Database, FolderOpen, History, RotateCcw, Trash2, Download } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
+import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { getStoredTheme, setTheme, type Theme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
+import { getMergeHistory, rollbackMerge, deleteMergeEntry, downloadMergeSnapshot, type MergeHistoryEntry } from "@/lib/exportMarkdown"
 
 interface AppInfo {
   name: string
@@ -14,27 +16,34 @@ interface AppInfo {
   arch: string
 }
 
-const sections = [
+const BASE_SECTIONS = [
   { id: "appearance", label: "Apparence", icon: Palette },
   { id: "data", label: "Données", icon: Database },
+  { id: "history", label: "Historique", icon: History },
   { id: "about", label: "À propos", icon: Info },
 ] as const
 
-type SectionId = (typeof sections)[number]["id"]
+type SectionId = (typeof BASE_SECTIONS)[number]["id"]
 
 interface SettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  classeurId?: number
+  classeurName?: string
 }
 
 /** Breakpoint sm Tailwind (640px) */
 const SM_QUERY = "(min-width: 640px)"
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }: SettingsDialogProps) {
+  const sections = BASE_SECTIONS.filter((s) => s.id !== "history" || classeurId)
   const [activeSection, setActiveSection] = useState<SectionId>("appearance")
   const [currentTheme, setCurrentTheme] = useState<Theme>(getStoredTheme)
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [dbFolder, setDbFolder] = useState("")
+  const [mergeHistory, setMergeHistory] = useState<MergeHistoryEntry[]>([])
+  const [busy, setBusy] = useState<number | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<MergeHistoryEntry | null>(null)
 
   // Détecte si la nav interne est rétractée (icônes seules)
   const [isCollapsed, setIsCollapsed] = useState(() => !window.matchMedia(SM_QUERY).matches)
@@ -50,18 +59,81 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setTheme(currentTheme)
   }, [currentTheme])
 
+  const refreshHistory = () => {
+    if (classeurId) getMergeHistory(classeurId).then(setMergeHistory)
+  }
+
   useEffect(() => {
     if (open) {
-      invoke<AppInfo>("get_app_info").then(setInfo)  
+      invoke<AppInfo>("get_app_info").then(setInfo)
       invoke<string>("get_db_url").then((url) => {
         // url = "sqlite:C:\...\sqlite\registre.db" → extraire le dossier parent
         const path = url.replace(/^sqlite:/, "")
         const sep = path.includes("\\") ? "\\" : "/"
         const folder = path.substring(0, path.lastIndexOf(sep))
-        setDbFolder(folder)  
+        setDbFolder(folder)
       })
+      refreshHistory()
     }
-  }, [open])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, classeurId])
+
+  const handleRestore = async (entry: MergeHistoryEntry) => {
+    setBusy(entry.id)
+    try {
+      await rollbackMerge(entry.id)
+      toast.success("Restauration effectuée")
+      refreshHistory()
+    } catch {
+      toast.error("Erreur lors de la restauration")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setBusy(deleteTarget.id)
+    try {
+      await deleteMergeEntry(deleteTarget.id)
+      toast.success("Sauvegarde supprimée")
+      refreshHistory()
+    } catch {
+      toast.error("Erreur lors de la suppression")
+    } finally {
+      setBusy(null)
+      setDeleteTarget(null)
+    }
+  }
+
+  const getEntryLabel = (entry: MergeHistoryEntry) => {
+    const isAuto = entry.source_name === "Sauvegarde avant restauration"
+    const isExport = entry.source_name === "Export"
+    return {
+      title: isAuto ? "Sauvegarde" : isExport ? "Export" : "Import",
+      description: isAuto
+        ? "Sauvegarde automatique avant retour en arrière"
+        : isExport
+          ? "Sauvegarde au moment de l'export"
+          : "Fusion depuis un fichier externe",
+      hasCounters: !isAuto && !isExport,
+    }
+  }
+
+  const handleDownload = async (entry: MergeHistoryEntry) => {
+    setBusy(entry.id)
+    try {
+      const { title } = getEntryLabel(entry)
+      const date = new Date(entry.merged_at).toISOString().slice(0, 10)
+      const name = classeurName || "Classeur"
+      const result = await downloadMergeSnapshot(entry.id, `${name} ${title.toLowerCase()} ${date}`)
+      if (result) toast.success("Fichier enregistré")
+    } catch {
+      toast.error("Erreur lors du téléchargement")
+    } finally {
+      setBusy(null)
+    }
+  }
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -176,6 +248,92 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 </section>
               )}
 
+              {activeSection === "history" && classeurId && (
+                <section>
+                  <h2 className="text-base font-semibold">Historique des imports</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Chaque import crée une sauvegarde automatique. Vous pouvez restaurer un état précédent ou supprimer une sauvegarde devenue inutile.
+                  </p>
+                  {mergeHistory.length === 0 ? (
+                    <p className="mt-4 text-sm text-muted-foreground">Aucune sauvegarde enregistrée.</p>
+                  ) : (
+                    <div className="mt-4 flex flex-col gap-2">
+                      {mergeHistory.map((entry) => {
+                        const isBusy = busy === entry.id
+                        const { title, description, hasCounters } = getEntryLabel(entry)
+                        return (
+                          <div key={entry.id} className="flex items-center gap-3 rounded-lg border px-4 py-3 text-sm">
+                            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                              <span className="font-medium truncate">
+                                {title}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {description}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(entry.merged_at).toLocaleString("fr-FR")}
+                                {hasCounters && (
+                                  <>
+                                    {" — "}
+                                    {entry.inserted} ajouté(s), {entry.updated} mis à jour, {entry.unchanged} inchangé(s)
+                                    {entry.skipped > 0 && `, ${entry.skipped} ignoré(s)`}
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="shrink-0 h-8 w-8"
+                                  disabled={busy !== null}
+                                  onClick={() => handleRestore(entry)}
+                                >
+                                  <RotateCcw className={cn("h-4 w-4", isBusy && "animate-spin")} />
+                                  <span className="sr-only">Restaurer</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Restaurer cette sauvegarde</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="shrink-0 h-8 w-8"
+                                  disabled={busy !== null}
+                                  onClick={() => handleDownload(entry)}
+                                >
+                                  <Download className="h-4 w-4" />
+                                  <span className="sr-only">Télécharger</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Télécharger le JSON</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  disabled={busy !== null}
+                                  onClick={() => setDeleteTarget(entry)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Supprimer</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Supprimer cette sauvegarde</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </section>
+              )}
+
               {activeSection === "about" && (
                 <section>
                   <h2 className="text-base font-semibold">À propos</h2>
@@ -203,6 +361,47 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </Dialog.Description>
         </Dialog.Content>
       </Dialog.Portal>
+
+      {/* Dialog de confirmation de suppression */}
+      <Dialog.Root open={deleteTarget !== null} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/60" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-sm border bg-background shadow-lg rounded-lg flex flex-col overflow-hidden focus:outline-none">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <Dialog.Title className="text-lg font-semibold">
+                Supprimer la sauvegarde
+              </Dialog.Title>
+              <Dialog.Close className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Fermer</span>
+              </Dialog.Close>
+            </div>
+
+            <div className="px-6 py-4">
+              <p className="text-sm text-muted-foreground">
+                Voulez-vous vraiment supprimer la sauvegarde{" "}
+                <span className="font-medium text-foreground">
+                  {deleteTarget ? getEntryLabel(deleteTarget).title : ""}
+                </span>{" "}
+                du {deleteTarget ? new Date(deleteTarget.merged_at).toLocaleString("fr-FR") : ""} ?
+                Cette action est irréversible.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 px-6 pb-4">
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={busy !== null}>
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                Supprimer
+              </Button>
+            </div>
+
+            <Dialog.Description className="sr-only">
+              Confirmer la suppression de la sauvegarde
+            </Dialog.Description>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </Dialog.Root>
   )
 }

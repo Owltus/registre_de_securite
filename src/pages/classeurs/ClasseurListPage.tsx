@@ -234,22 +234,27 @@ export default function ClasseurListPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return
-    // Suppression en cascade : documents, tracking_sheets, signature_sheets liés aux chapitres du classeur
+    // Soft delete en cascade : items, chapitres, puis suppression réelle du classeur
+    const now = new Date().toISOString()
     await sqliteAdapter.execute(
-      "DELETE FROM documents WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1)",
-      [deleteTarget.id]
+      "UPDATE documents SET deleted_at = $2 WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1) AND deleted_at IS NULL",
+      [deleteTarget.id, now]
     )
     await sqliteAdapter.execute(
-      "DELETE FROM tracking_sheets WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1)",
-      [deleteTarget.id]
+      "UPDATE tracking_sheets SET deleted_at = $2 WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1) AND deleted_at IS NULL",
+      [deleteTarget.id, now]
     )
     await sqliteAdapter.execute(
-      "DELETE FROM signature_sheets WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1)",
-      [deleteTarget.id]
+      "UPDATE signature_sheets SET deleted_at = $2 WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1) AND deleted_at IS NULL",
+      [deleteTarget.id, now]
     )
     await sqliteAdapter.execute(
-      "DELETE FROM chapters WHERE classeur_id = $1",
-      [deleteTarget.id]
+      "UPDATE intercalaires SET deleted_at = $2 WHERE chapter_id IN (SELECT id FROM chapters WHERE classeur_id = $1) AND deleted_at IS NULL",
+      [deleteTarget.id, now]
+    )
+    await sqliteAdapter.execute(
+      "UPDATE chapters SET deleted_at = $2 WHERE classeur_id = $1 AND deleted_at IS NULL",
+      [deleteTarget.id, now]
     )
     await remove(String(deleteTarget.id))
     emit(CLASSEURS_CHANGED)

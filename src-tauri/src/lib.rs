@@ -48,6 +48,12 @@ pub fn run() {
                             sql: include_str!("../sql/schema.sql"),
                             kind: tauri_plugin_sql::MigrationKind::Up,
                         },
+                        tauri_plugin_sql::Migration {
+                            version: 2,
+                            description: "uuid, soft delete et historique des merges",
+                            sql: include_str!("../sql/migration_v2.sql"),
+                            kind: tauri_plugin_sql::MigrationKind::Up,
+                        },
                     ],
                 )
                 .build(),
@@ -63,6 +69,11 @@ pub fn run() {
             commands::files::import_classeur_json,
             commands::files::import_json_as_new_classeur,
             commands::files::import_json_as_new_classeur_from_bytes,
+            commands::files::preview_merge_json,
+            commands::files::rollback_merge,
+            commands::files::delete_merge_entry,
+            commands::files::get_merge_history,
+            commands::files::get_merge_snapshot,
             commands::pdf::generate_pdf,
         ])
         .setup(|app| {

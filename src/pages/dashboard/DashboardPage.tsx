@@ -11,7 +11,8 @@ import { useMutation } from "@/lib/hooks/useMutation"
 import { sqliteAdapter } from "@/lib/db/sqlite"
 import { emit, on, CHAPTERS_CHANGED, CLASSEURS_CHANGED } from "@/lib/events"
 import { IconPicker } from "@/components/IconPicker"
-import { exportClasseurZip, type ExportChapter, exportClasseurJson, importClasseurJson } from "@/lib/exportMarkdown"
+import { exportClasseurZip, type ExportChapter, exportClasseurJson, selectJsonFile, previewMergeJson, importClasseurJson, type MergePreview } from "@/lib/exportMarkdown"
+import { MergePreviewDialog } from "@/features/merge/MergePreviewDialog"
 import { PrintPreview } from "@/components/print/PrintPreview"
 import { ClasseurCoverPage } from "@/components/print/ClasseurCoverPage"
 import { TableOfContentsPage } from "@/components/print/TableOfContentsPage"
@@ -260,17 +261,43 @@ export default function DashboardPage() {
     }
   }
 
+  // Merge preview state
+  const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
+  const [mergePreview, setMergePreview] = useState<MergePreview | null>(null)
+  const [mergeFilePath, setMergeFilePath] = useState<string | null>(null)
+  const [mergeLoading, setMergeLoading] = useState(false)
+
   const handleImportJson = async () => {
     try {
-      const result = await importClasseurJson(Number(classeurId))
-      if (result) {
-        toast.success(`Import terminé : ${result.inserted} ajouté(s), ${result.updated} mis à jour, ${result.unchanged} inchangé(s)`)
-        emit(CHAPTERS_CHANGED)
-        emit(CLASSEURS_CHANGED)
-        refetchChapters()
-      }
+      const path = await selectJsonFile()
+      if (!path) return
+
+      setMergeFilePath(path)
+      setMergePreview(null)
+      setMergePreviewOpen(true)
+
+      const preview = await previewMergeJson(Number(classeurId), path)
+      setMergePreview(preview)
+    } catch {
+      toast.error("Erreur lors de la prévisualisation")
+      setMergePreviewOpen(false)
+    }
+  }
+
+  const handleConfirmMerge = async () => {
+    if (!mergeFilePath) return
+    setMergeLoading(true)
+    try {
+      const result = await importClasseurJson(Number(classeurId), mergeFilePath)
+      toast.success(`Import terminé : ${result.inserted} ajouté(s), ${result.updated} mis à jour, ${result.unchanged} inchangé(s)`)
+      emit(CHAPTERS_CHANGED)
+      emit(CLASSEURS_CHANGED)
+      refetchChapters()
+      setMergePreviewOpen(false)
     } catch {
       toast.error("Erreur lors de l'import JSON")
+    } finally {
+      setMergeLoading(false)
     }
   }
 
@@ -596,6 +623,15 @@ export default function DashboardPage() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* Dialog de prévisualisation du merge */}
+      <MergePreviewDialog
+        open={mergePreviewOpen}
+        onOpenChange={setMergePreviewOpen}
+        preview={mergePreview}
+        loading={mergeLoading}
+        onConfirm={handleConfirmMerge}
+      />
 
       {/* Dialog de modification du nom */}
       <Dialog.Root open={editOpen} onOpenChange={setEditOpen}>

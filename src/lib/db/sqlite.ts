@@ -1,10 +1,20 @@
 import { getDb, type DataAdapter } from "./index"
 
+/** Tables utilisant le soft delete (colonne deleted_at) */
+const SOFT_DELETE_TABLES = new Set([
+  "chapters", "documents", "tracking_sheets", "signature_sheets", "intercalaires",
+])
+
+/** Filtre soft delete à ajouter aux SELECT sur les tables concernées */
+function softDeleteFilter(table: string): string {
+  return SOFT_DELETE_TABLES.has(table) ? " AND deleted_at IS NULL" : ""
+}
+
 export const sqliteAdapter: DataAdapter = {
   async get(table, id) {
     const db = await getDb()
     const rows = await db.select<Record<string, unknown>[]>(
-      `SELECT * FROM ${table} WHERE id = $1`,
+      `SELECT * FROM ${table} WHERE id = $1${softDeleteFilter(table)}`,
       [id]
     )
     return rows[0] ?? null
@@ -12,13 +22,15 @@ export const sqliteAdapter: DataAdapter = {
 
   async getAll(table, filters) {
     const db = await getDb()
+    const sd = softDeleteFilter(table)
     if (!filters || Object.keys(filters).length === 0) {
-      return db.select(`SELECT * FROM ${table} ORDER BY sort_order`)
+      const where = SOFT_DELETE_TABLES.has(table) ? " WHERE deleted_at IS NULL" : ""
+      return db.select(`SELECT * FROM ${table}${where} ORDER BY sort_order`)
     }
     const keys = Object.keys(filters)
     const where = keys.map((k, i) => `${k} = $${i + 1}`).join(" AND ")
     const values = keys.map((k) => filters[k])
-    return db.select(`SELECT * FROM ${table} WHERE ${where} ORDER BY sort_order`, values)
+    return db.select(`SELECT * FROM ${table} WHERE ${where}${sd} ORDER BY sort_order`, values)
   },
 
   async insert(table, data) {
@@ -47,7 +59,14 @@ export const sqliteAdapter: DataAdapter = {
 
   async remove(table, id) {
     const db = await getDb()
-    await db.execute(`DELETE FROM ${table} WHERE id = $1`, [id])
+    if (SOFT_DELETE_TABLES.has(table)) {
+      await db.execute(
+        `UPDATE ${table} SET deleted_at = datetime('now') WHERE id = $1`,
+        [id]
+      )
+    } else {
+      await db.execute(`DELETE FROM ${table} WHERE id = $1`, [id])
+    }
   },
 
   async query<T = unknown>(sql: string, params?: unknown[]) {

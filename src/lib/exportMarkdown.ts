@@ -90,14 +90,46 @@ export interface MergeResult {
   inserted: number
   updated: number
   unchanged: number
+  skipped: number
+}
+
+/** Item de prévisualisation de merge */
+export interface MergePreviewItem {
+  action: "insert" | "update" | "unchanged" | "skip"
+  kind: string
+  title: string
+  chapter_label: string
+  detail: string
+}
+
+/** Résultat complet de la prévisualisation */
+export interface MergePreview {
+  items: MergePreviewItem[]
+  total_insert: number
+  total_update: number
+  total_unchanged: number
+  total_skip: number
+  warnings: string[]
+}
+
+/** Entrée d'historique de merge */
+export interface MergeHistoryEntry {
+  id: number
+  classeur_id: number
+  merged_at: string
+  source_name: string
+  inserted: number
+  updated: number
+  unchanged: number
+  skipped: number
 }
 
 /**
- * Exporte un classeur au format JSON lisible via le dialogue "Enregistrer sous".
- * Retourne le chemin du fichier créé, ou null si l'utilisateur a annulé.
+ * Ouvre un dialogue "Enregistrer sous" pour un fichier JSON, écrit le contenu, et retourne le chemin.
+ * Retourne null si l'utilisateur a annulé.
  */
-export async function exportClasseurJson(classeurName: string, classeurId: number): Promise<string | null> {
-  const filename = sanitizeFilename(classeurName || "Classeur") + ".json"
+async function saveJsonToFile(defaultName: string, fetchContent: () => Promise<string>): Promise<string | null> {
+  const filename = sanitizeFilename(defaultName) + ".json"
 
   const path = await save({
     defaultPath: filename,
@@ -106,26 +138,73 @@ export async function exportClasseurJson(classeurName: string, classeurId: numbe
 
   if (!path) return null
 
-  const content = await invoke<string>("export_classeur_json", { classeurId })
+  const content = await fetchContent()
   await invoke("write_file", { path, content })
   return path
 }
 
 /**
- * Importe un fichier JSON dans un classeur avec merge intelligent.
- * Retourne le résultat du merge, ou null si l'utilisateur a annulé.
+ * Exporte un classeur au format JSON lisible via le dialogue "Enregistrer sous".
+ * Retourne le chemin du fichier créé, ou null si l'utilisateur a annulé.
  */
-export async function importClasseurJson(classeurId: number): Promise<MergeResult | null> {
+export async function exportClasseurJson(classeurName: string, classeurId: number): Promise<string | null> {
+  return saveJsonToFile(classeurName || "Classeur", () => invoke<string>("export_classeur_json", { classeurId }))
+}
+
+/**
+ * Ouvre un dialogue fichier et retourne le chemin sélectionné, ou null si annulé.
+ */
+export async function selectJsonFile(): Promise<string | null> {
   const selected = await open({
     filters: [{ name: "JSON", extensions: ["json"] }],
     multiple: false,
   })
-
   if (!selected) return null
+  return typeof selected === "string" ? selected : String(selected)
+}
 
-  const path = typeof selected === "string" ? selected : String(selected)
-  const result = await invoke<MergeResult>("import_classeur_json", { classeurId, path })
-  return result
+/**
+ * Prévisualise un merge JSON sans l'exécuter.
+ */
+export async function previewMergeJson(classeurId: number, path: string): Promise<MergePreview> {
+  return invoke<MergePreview>("preview_merge_json", { classeurId, path })
+}
+
+/**
+ * Importe un fichier JSON dans un classeur avec merge intelligent.
+ */
+export async function importClasseurJson(classeurId: number, path: string): Promise<MergeResult> {
+  return invoke<MergeResult>("import_classeur_json", { classeurId, path })
+}
+
+/**
+ * Récupère l'historique des merges d'un classeur.
+ */
+export async function getMergeHistory(classeurId: number): Promise<MergeHistoryEntry[]> {
+  return invoke<MergeHistoryEntry[]>("get_merge_history", { classeurId })
+}
+
+/**
+ * Restaure un merge en remplaçant les données actuelles par le snapshot.
+ * Crée automatiquement un backup de l'état actuel s'il diffère du snapshot.
+ */
+export async function rollbackMerge(mergeId: number): Promise<void> {
+  await invoke("rollback_merge", { mergeId })
+}
+
+/**
+ * Supprime une entrée d'historique de merge (sans restauration).
+ */
+export async function deleteMergeEntry(mergeId: number): Promise<void> {
+  await invoke("delete_merge_entry", { mergeId })
+}
+
+/**
+ * Télécharge le snapshot JSON d'une entrée d'historique via un dialogue "Enregistrer sous".
+ * Retourne le chemin du fichier créé, ou null si l'utilisateur a annulé.
+ */
+export async function downloadMergeSnapshot(mergeId: number, defaultName: string): Promise<string | null> {
+  return saveJsonToFile(defaultName, () => invoke<string>("get_merge_snapshot", { mergeId }))
 }
 
 /** Nettoie un titre pour en faire un nom de fichier valide */
