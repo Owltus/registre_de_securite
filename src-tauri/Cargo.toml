@@ -1,6 +1,6 @@
 [package]
 name = "registre"
-version = "1.2.0"
+version = "1.3.0"
 description = "Registre — Classeurs structurés prêts à imprimer"
 authors = ["you"]
 edition = "2021"
