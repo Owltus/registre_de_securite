@@ -7,6 +7,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button"
 import { getStoredTheme, setTheme, type Theme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
+import { emit, CHAPTERS_CHANGED } from "@/lib/events"
 import { getMergeHistory, rollbackMerge, deleteMergeEntry, downloadMergeSnapshot, type MergeHistoryEntry } from "@/lib/exportMarkdown"
 
 interface AppInfo {
@@ -83,6 +84,7 @@ export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }:
     try {
       await rollbackMerge(entry.id)
       toast.success("Restauration effectuée")
+      emit(CHAPTERS_CHANGED)
       refreshHistory()
     } catch {
       toast.error("Erreur lors de la restauration")
