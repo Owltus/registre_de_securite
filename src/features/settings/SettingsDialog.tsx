@@ -87,7 +87,7 @@ export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }:
       emit(CHAPTERS_CHANGED)
       refreshHistory()
     } catch {
-      toast.error("Erreur lors de la restauration")
+      toast.error("Erreur lors de la restauration de la sauvegarde")
     } finally {
       setBusy(null)
     }
@@ -101,7 +101,7 @@ export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }:
       toast.error("Sauvegarde supprimée")
       refreshHistory()
     } catch {
-      toast.error("Erreur lors de la suppression")
+      toast.error("Erreur lors de la suppression de la sauvegarde")
     } finally {
       setBusy(null)
       setDeleteTarget(null)
@@ -132,7 +132,7 @@ export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }:
       if (result) toast.info("Fichier enregistré")
       else toast.warning("Téléchargement annulé")
     } catch {
-      toast.error("Erreur lors du téléchargement")
+      toast.error("Erreur lors du téléchargement de la sauvegarde")
     } finally {
       setBusy(null)
     }

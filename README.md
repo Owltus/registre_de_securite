@@ -1,6 +1,6 @@
 # Registre
 
-Application de bureau pour créer et gérer des **classeurs structurés** prêts à imprimer : registres de sécurité, carnets sanitaires, ou tout autre document organisé par chapitres avec une trame fixe.
+Application de bureau pour créer et gérer des **classeurs structurés** prêts à imprimer, organisés par chapitres avec une trame fixe.
 
 Chaque classeur contient des chapitres, et chaque chapitre peut contenir des documents (Markdown), des feuilles de suivi périodique et des feuilles de signature — le tout exportable en PDF pour être classé dans un support physique.
 

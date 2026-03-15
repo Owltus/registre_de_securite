@@ -18,23 +18,6 @@ import { useDndRegistry } from "@/lib/dnd/useDndRegistry"
 import { IconPicker } from "@/components/IconPicker"
 import { importClasseur, importJsonAsNewClasseurFromBytes } from "@/lib/exportMarkdown"
 
-/** Chapitres par défaut à insérer dans chaque nouveau classeur */
-const DEFAULT_CHAPTERS = [
-  { label: "Informations générales", icon: "Building2", description: "Identité de l'établissement, classement ERP, coordonnées et informations administratives.", sort_order: 1 },
-  { label: "Vérifications périodiques", icon: "ClipboardCheck", description: "Rapports de vérifications techniques réglementaires (électricité, gaz, ascenseurs, etc.).", sort_order: 2 },
-  { label: "Moyens de secours", icon: "ShieldAlert", description: "Inventaire et maintenance des équipements de sécurité (extincteurs, alarmes, désenfumage, etc.).", sort_order: 3 },
-  { label: "Formation du personnel", icon: "GraduationCap", description: "Attestations de formation sécurité incendie, exercices d'évacuation et habilitations.", sort_order: 4 },
-  { label: "Travaux", icon: "Wrench", description: "Suivi des travaux réalisés ou en cours impactant la sécurité de l'établissement.", sort_order: 5 },
-  { label: "Observations", icon: "Eye", description: "Remarques, anomalies constatées et actions correctives à mener.", sort_order: 6 },
-  { label: "Consignes de sécurité", icon: "ScrollText", description: "Consignes générales et particulières de sécurité, plans d'évacuation et procédures.", sort_order: 7 },
-  { label: "Commissions de sécurité", icon: "Users", description: "Procès-verbaux des commissions de sécurité et suivi des prescriptions.", sort_order: 8 },
-]
-
-async function insertDefaultChapters(classeurId: number) {
-  for (const ch of DEFAULT_CHAPTERS) {
-    await sqliteAdapter.insert("chapters", { ...ch, classeur_id: classeurId })
-  }
-}
 
 /** Carte de classeur réordonnnable par drag-and-drop */
 function SortableClasseurCard({
@@ -206,8 +189,6 @@ export default function ClasseurListPage() {
   const [newIcon, setNewIcon] = useState("BookOpen")
   const [newEtablissement, setNewEtablissement] = useState("")
   const [newComplement, setNewComplement] = useState("")
-  const [useTemplate, setUseTemplate] = useState(true)
-
   const handleCreate = async () => {
     const name = newName.trim()
     if (!name) return
@@ -215,9 +196,6 @@ export default function ClasseurListPage() {
       ? Math.max(...classeurs.map((c) => c.sort_order)) + 1
       : 1
     const newId = await insert({ name, icon: newIcon, etablissement: newEtablissement.trim(), etablissement_complement: newComplement.trim(), sort_order: nextOrder })
-    if (useTemplate) {
-      await insertDefaultChapters(Number(newId))
-    }
     emit(CLASSEURS_CHANGED)
     refetch()
     setCreateOpen(false)
@@ -225,7 +203,6 @@ export default function ClasseurListPage() {
     setNewIcon("BookOpen")
     setNewEtablissement("")
     setNewComplement("")
-    setUseTemplate(true)
     navigate(`/classeurs/${newId}`)
   }
 
@@ -281,7 +258,7 @@ export default function ClasseurListPage() {
               <Plus className="h-5 w-5 text-muted-foreground shrink-0" />
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium">Nouveau classeur</span>
-                <span className="text-xs text-muted-foreground">Vierge ou pré-rempli</span>
+                <span className="text-xs text-muted-foreground">Créer un classeur vierge</span>
               </div>
             </button>
             <button
@@ -384,21 +361,6 @@ export default function ClasseurListPage() {
                 />
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer rounded-lg border p-3 hover:bg-accent/50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={useTemplate}
-                  onChange={(e) => setUseTemplate(e.target.checked)}
-                  className="h-4 w-4 rounded border-border accent-primary"
-                />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">Chapitres par défaut</span>
-                  <span className="text-xs text-muted-foreground">
-                    Pré-remplir avec les {DEFAULT_CHAPTERS.length} chapitres du registre de sécurité ERP
-                  </span>
-                </div>
-              </label>
-
               <div className="flex justify-end gap-2">
                 <Dialog.Close asChild>
                   <Button type="button" variant="outline">Annuler</Button>
@@ -408,7 +370,7 @@ export default function ClasseurListPage() {
             </form>
 
             <Dialog.Description className="sr-only">
-              Créer un nouveau classeur avec ses chapitres par défaut
+              Créer un nouveau classeur
             </Dialog.Description>
           </Dialog.Content>
         </Dialog.Portal>

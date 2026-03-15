@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Plus, Printer, List, FileArchive, Settings, FileUp, FileDown, Search, Upload } from "lucide-react"
+import { X, Plus, Printer, List, FileArchive, Settings, FileUp, FileDown, Search, Upload, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DEFAULT_REGISTRY_NAME, buildEstablishment, type ChapterRow, type ClasseurRow } from "@/lib/navigation"
@@ -26,10 +26,7 @@ import { TrackingSheetCard } from "@/pages/chapter/TrackingSheetCard"
 import { SignatureSheetCard } from "@/pages/chapter/SignatureSheetCard"
 import { IntercalaireCard } from "@/pages/chapter/IntercalaireCard"
 import type { Doc, TrackingSheet, SignatureSheet, Intercalaire, Periodicite } from "@/pages/chapter/types"
-
-/** Retire les diacritiques et passe en minuscule pour une recherche accent-insensible */
-const stripAccents = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+import { stripAccents } from "@/lib/utils"
 
 type SearchResult =
   | { kind: "document"; data: Doc; chapterId: string; chapterName: string }
@@ -71,23 +68,27 @@ export default function DashboardPage() {
   const handleCreate = async () => {
     const label = newLabel.trim()
     if (!label) return
-    const nextOrder = chapters.length > 0
-      ? Math.max(...chapters.map((c) => c.sort_order)) + 1
-      : 1
-    const newId = await insert({
-      label,
-      icon: newIcon,
-      description: newDescription.trim(),
-      sort_order: nextOrder,
-      classeur_id: Number(classeurId),
-    })
-    emit(CHAPTERS_CHANGED)
-    refetchChapters()
-    setCreateOpen(false)
-    setNewLabel("")
-    setNewIcon("FileText")
-    setNewDescription("")
-    navigate(`/classeurs/${classeurId}/chapitres/${newId}`)
+    try {
+      const nextOrder = chapters.length > 0
+        ? Math.max(...chapters.map((c) => c.sort_order)) + 1
+        : 1
+      const newId = await insert({
+        label,
+        icon: newIcon,
+        description: newDescription.trim(),
+        sort_order: nextOrder,
+        classeur_id: Number(classeurId),
+      })
+      emit(CHAPTERS_CHANGED)
+      refetchChapters()
+      setCreateOpen(false)
+      setNewLabel("")
+      setNewIcon("FileText")
+      setNewDescription("")
+      navigate(`/classeurs/${classeurId}/chapitres/${newId}`)
+    } catch {
+      toast.error("Erreur lors de la création du chapitre")
+    }
   }
 
   const sortedChapters = useMemo(() => [...chapters].sort((a, b) => a.sort_order - b.sort_order), [chapters])
@@ -224,7 +225,7 @@ export default function DashboardPage() {
   }
 
   // Construire les entrées du sommaire
-  const tocEntries = sortedChapters.map((ch, i) => {
+  const tocEntries = useMemo(() => sortedChapters.map((ch, i) => {
     const chDocs = allDocs.filter((d) => String(d.chapter_id) === String(ch.id))
     const chSheets = allTrackingSheets.filter((s) => String(s.chapter_id) === String(ch.id))
     const chSigs = allSignatureSheets.filter((s) => String(s.chapter_id) === String(ch.id))
@@ -239,9 +240,11 @@ export default function DashboardPage() {
         ...chGardes.map((g) => g.title || "Sans titre"),
       ],
     }
-  })
+  }), [sortedChapters, allDocs, allTrackingSheets, allSignatureSheets, allIntercalaires])
 
   const handleExportMarkdown = async () => {
+    if (busy) return
+    setBusy("markdown")
     try {
       const data: ExportChapter[] = sortedChapters.map((ch, i) => ({
         label: ch.label,
@@ -254,17 +257,26 @@ export default function DashboardPage() {
       toast.info("Export Markdown terminé")
     } catch {
       toast.error("Erreur lors de l'export Markdown")
+    } finally {
+      setBusy(null)
     }
   }
 
   const handleExportJson = async () => {
+    if (busy) return
+    setBusy("json")
     try {
       const path = await exportClasseurJson(classeurName, Number(classeurId))
       if (path) toast.info("Export JSON terminé")
     } catch {
       toast.error("Erreur lors de l'export JSON")
+    } finally {
+      setBusy(null)
     }
   }
+
+  // État de chargement pour les boutons export/import
+  const [busy, setBusy] = useState<"markdown" | "json" | "import" | null>(null)
 
   // Merge preview state
   const [mergePreviewOpen, setMergePreviewOpen] = useState(false)
@@ -311,15 +323,17 @@ export default function DashboardPage() {
       const preview = await previewMergeJsonFromContent(Number(classeurId), text, true)
       setMergePreview(preview)
     } catch {
-      toast.error("Erreur lors de la prévisualisation")
+      toast.error("Erreur lors de la prévisualisation du fichier JSON déposé")
       setMergePreviewOpen(false)
     }
   }, [classeurId])
 
   const handleImportJson = async () => {
+    if (busy) return
+    setBusy("import")
     try {
       const path = await selectJsonFile()
-      if (!path) return
+      if (!path) { setBusy(null); return }
 
       setMergeFilePath(path)
       setMergePreview(null)
@@ -328,8 +342,10 @@ export default function DashboardPage() {
       const preview = await previewMergeJson(Number(classeurId), path, true)
       setMergePreview(preview)
     } catch {
-      toast.error("Erreur lors de la prévisualisation")
+      toast.error("Erreur lors de la lecture du fichier JSON sélectionné")
       setMergePreviewOpen(false)
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -372,6 +388,7 @@ export default function DashboardPage() {
             placeholder="Rechercher dans le classeur..."
             className="pl-9"
             disabled={!dataLoaded}
+            aria-label="Rechercher"
           />
         </div>
       </div>
@@ -503,40 +520,41 @@ export default function DashboardPage() {
 
               <div className="border-b border-border" />
               <button
-                disabled={!dataLoaded}
+                disabled={!dataLoaded || busy !== null}
                 onClick={handleExportMarkdown}
                 className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
               >
-                <FileArchive className="h-5 w-5 text-muted-foreground shrink-0" />
+                {busy === "markdown" ? <Loader2 className="h-5 w-5 text-muted-foreground shrink-0 animate-spin" /> : <FileArchive className="h-5 w-5 text-muted-foreground shrink-0" />}
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium">Exporter en Markdown</span>
+                  <span className="text-sm font-medium">{busy === "markdown" ? "Export en cours..." : "Exporter en Markdown"}</span>
                   <span className="text-xs text-muted-foreground">Archive ZIP contenant tous les documents</span>
                 </div>
               </button>
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  disabled={!dataLoaded}
+                  disabled={!dataLoaded || busy !== null}
                   onClick={handleExportJson}
                   className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
                 >
-                  <FileUp className="h-5 w-5 text-muted-foreground shrink-0" />
+                  {busy === "json" ? <Loader2 className="h-5 w-5 text-muted-foreground shrink-0 animate-spin" /> : <FileUp className="h-5 w-5 text-muted-foreground shrink-0" />}
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">Exporter en JSON</span>
+                    <span className="text-sm font-medium">{busy === "json" ? "Export en cours..." : "Exporter en JSON"}</span>
                     <span className="text-xs text-muted-foreground">Format lisible et modifiable</span>
                   </div>
                 </button>
                 <button
+                  disabled={busy !== null}
                   onClick={handleImportJson}
                   onDragEnter={onDragEnter}
                   onDragOver={onDragOver}
                   onDragLeave={onDragLeave}
                   onDrop={onDrop}
-                  className={`flex items-center gap-4 rounded-lg border px-5 py-4 hover:bg-accent transition-colors text-left ${isDragOver ? "border-primary bg-primary/5" : "bg-card"}`}
+                  className={`flex items-center gap-4 rounded-lg border px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none ${isDragOver ? "border-primary bg-primary/5" : "bg-card"}`}
                 >
-                  {isDragOver ? <Upload className="h-5 w-5 text-muted-foreground shrink-0" /> : <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />}
+                  {busy === "import" ? <Loader2 className="h-5 w-5 text-muted-foreground shrink-0 animate-spin" /> : isDragOver ? <Upload className="h-5 w-5 text-muted-foreground shrink-0" /> : <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />}
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">{isDragOver ? "Déposez ici" : "Importer un JSON"}</span>
-                    {!isDragOver && <span className="text-xs text-muted-foreground">Merge intelligent sans suppression</span>}
+                    <span className="text-sm font-medium">{busy === "import" ? "Import en cours..." : isDragOver ? "Déposez ici" : "Importer un JSON"}</span>
+                    {!isDragOver && busy !== "import" && <span className="text-xs text-muted-foreground">Merge intelligent sans suppression</span>}
                   </div>
                 </button>
               </div>

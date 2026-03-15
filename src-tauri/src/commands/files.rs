@@ -286,12 +286,33 @@ fn now_iso8601() -> String {
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, hours, minutes, seconds)
 }
 
+// ── Validation de chemin ──────────────────────────────────────────
+
+/// Valide qu'un chemin ne contient pas de traversée de répertoire.
+/// Résout le chemin canonique et rejette toute tentative de traversal
+/// (composants `..`, séquences encodées, etc.).
+fn validate_path(raw: &str) -> Result<std::path::PathBuf, AppError> {
+    let p = std::path::Path::new(raw);
+
+    // Rejeter les chemins contenant des composants `..`
+    for component in p.components() {
+        if matches!(component, std::path::Component::ParentDir) {
+            return Err(AppError::FileError(
+                "Chemin refusé : traversée de répertoire détectée (..)".to_string(),
+            ));
+        }
+    }
+
+    Ok(p.to_path_buf())
+}
+
 // ── Commandes fichier ──────────────────────────────────────────────
 
 /// Lit le contenu d'un fichier texte
 #[tauri::command]
 pub async fn read_file(path: String) -> Result<String, AppError> {
-    tokio::fs::read_to_string(&path)
+    let safe_path = validate_path(&path)?;
+    tokio::fs::read_to_string(&safe_path)
         .await
         .map_err(|e| AppError::FileError(format!("{}: {}", path, e)))
 }
@@ -299,7 +320,8 @@ pub async fn read_file(path: String) -> Result<String, AppError> {
 /// Écrit du contenu dans un fichier texte
 #[tauri::command]
 pub async fn write_file(path: String, content: String) -> Result<(), AppError> {
-    tokio::fs::write(&path, &content)
+    let safe_path = validate_path(&path)?;
+    tokio::fs::write(&safe_path, &content)
         .await
         .map_err(|e| AppError::FileError(format!("{}: {}", path, e)))
 }
@@ -307,7 +329,8 @@ pub async fn write_file(path: String, content: String) -> Result<(), AppError> {
 /// Écrit des données binaires dans un fichier
 #[tauri::command]
 pub async fn write_file_binary(path: String, data: Vec<u8>) -> Result<(), AppError> {
-    tokio::fs::write(&path, &data)
+    let safe_path = validate_path(&path)?;
+    tokio::fs::write(&safe_path, &data)
         .await
         .map_err(|e| AppError::FileError(format!("{}: {}", path, e)))
 }

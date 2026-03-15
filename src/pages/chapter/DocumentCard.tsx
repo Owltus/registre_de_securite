@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -28,12 +28,12 @@ interface DocumentCardProps {
 export function DocumentCard({ doc, chapterId, classeurId, chapterName, classeurName, establishment, sortableDisabled, onExport, onEdit, onDelete }: DocumentCardProps) {
   const navigate = useNavigate()
 
-  const dragData: DocumentDragData = {
+  const dragData: DocumentDragData = useMemo(() => ({
     type: "document",
     docId: doc.id,
     docTitle: doc.title,
     sourceChapterId: chapterId,
-  }
+  }), [doc.id, doc.title, chapterId])
 
   const {
     attributes,
@@ -78,9 +78,14 @@ export function DocumentCard({ doc, chapterId, classeurId, chapterName, classeur
       {/* Header — icône + titre */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
         <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="text-xs font-medium truncate flex-1">
-          {doc.title || "Sans titre"}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-xs font-medium truncate flex-1">
+              {doc.title || "Sans titre"}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{doc.title || "Sans titre"}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Miniature + boutons en surimpression */}

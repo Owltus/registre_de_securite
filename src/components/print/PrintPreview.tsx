@@ -87,8 +87,9 @@ export function PrintPreview({ open, onOpenChange, children, filename = "documen
                 </TooltipTrigger>
                 <TooltipContent>Imprimer</TooltipContent>
               </Tooltip>
-              <Dialog.Close className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              <Dialog.Close className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Fermer">
                 <X className="h-4 w-4" />
+                <span className="sr-only">Fermer</span>
               </Dialog.Close>
             </div>
           </div>

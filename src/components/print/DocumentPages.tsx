@@ -109,7 +109,7 @@ export function DocumentPages({ title, subtitle, content, chapterName, classeurN
 
       {/* Spinner pendant la mesure */}
       {measuring && (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center py-12" role="status" aria-label="Chargement">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
         </div>
       )}

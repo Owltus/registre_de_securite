@@ -41,16 +41,28 @@ function isHeading(tag: string): boolean {
   return /^h[1-6]$/i.test(tag)
 }
 
+/**
+ * Échappe les caractères spéciaux HTML dans une valeur d'attribut
+ * pour prévenir les injections XSS via les attributs.
+ */
+function escapeAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+}
+
 function buildOpenTag(el: Element, overrides?: Record<string, string>): string {
   const tag = el.tagName.toLowerCase()
   const attrs: string[] = []
   for (const a of Array.from(el.attributes)) {
     if (overrides && a.name in overrides) continue
-    attrs.push(`${a.name}="${a.value}"`)
+    attrs.push(`${a.name}="${escapeAttr(a.value)}"`)
   }
   if (overrides) {
     for (const [k, v] of Object.entries(overrides)) {
-      attrs.push(`${k}="${v}"`)
+      attrs.push(`${k}="${escapeAttr(v)}"`)
     }
   }
   return attrs.length > 0 ? `<${tag} ${attrs.join(" ")}>` : `<${tag}>`

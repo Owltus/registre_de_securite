@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**owl_boilerplate** is a reusable Tauri v2 starter template for desktop (Windows/macOS/Linux) and Android apps. It contains no business logic — only technical foundations meant to be duplicated for each new project.
+**Registre** est une application de bureau (Windows/macOS/Linux) pour créer et gérer des classeurs structurés prêts à imprimer, organisés par chapitres avec une trame fixe. Basée sur un boilerplate Tauri v2.
 
 ## Stack
 

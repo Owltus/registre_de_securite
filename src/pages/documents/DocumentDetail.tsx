@@ -11,16 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { ArrowLeft, Pencil, Eye, FileDown, FileOutput, Save } from "lucide-react"
 import { exportMarkdown } from "@/lib/exportMarkdown"
-
-interface Doc {
-  id: number
-  title: string
-  description: string
-  content: string
-  chapter_id: string
-  created_at: string
-  updated_at: string
-}
+import type { Doc } from "@/pages/chapter/types"
 
 export default function DocumentDetail() {
   const {
@@ -81,7 +72,7 @@ export default function DocumentDetail() {
       setEditing(false)
       toast.success("Document enregistré")
     } catch {
-      toast.error("Erreur lors de la sauvegarde")
+      toast.error("Erreur lors de la sauvegarde du document")
     }
   }
 
@@ -89,8 +80,8 @@ export default function DocumentDetail() {
     setPreviewOpen(true)
   }
 
-  // Synchronisation du scroll proportionnel (ratio)
-  const syncScroll = useCallback((source: "preview" | "editor") => {
+  // Synchronisation du scroll proportionnel (éditeur → preview uniquement)
+  const syncScroll = useCallback(() => {
     if (isSyncing.current) return
     isSyncing.current = true
 
@@ -101,13 +92,11 @@ export default function DocumentDetail() {
       return
     }
 
-    const fromEl = source === "preview" ? previewEl : editorEl
-    const toEl = source === "preview" ? editorEl : previewEl
-    const fromMax = fromEl.scrollHeight - fromEl.clientHeight
-    const toMax = toEl.scrollHeight - toEl.clientHeight
-    if (fromMax > 0 && toMax > 0) {
-      const ratio = fromEl.scrollTop / fromMax
-      toEl.scrollTop = ratio * toMax
+    const editorMax = editorEl.scrollHeight - editorEl.clientHeight
+    const previewMax = previewEl.scrollHeight - previewEl.clientHeight
+    if (editorMax > 0 && previewMax > 0) {
+      const ratio = editorEl.scrollTop / editorMax
+      previewEl.scrollTop = ratio * previewMax
     }
 
     requestAnimationFrame(() => { isSyncing.current = false })
@@ -125,7 +114,7 @@ export default function DocumentDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full" role="status" aria-label="Chargement">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
       </div>
     )
@@ -252,7 +241,6 @@ export default function DocumentDetail() {
           {/* Aperçu A4 temps réel (gauche) */}
           <div
             ref={combinedPreviewRef}
-            onScroll={() => syncScroll("preview")}
             className="w-1/2 overflow-y-auto border-r border-border bg-muted/30"
           >
             <div className="flex flex-col items-center gap-4 py-4" style={{ zoom: scale }}>
@@ -274,7 +262,7 @@ export default function DocumentDetail() {
               ref={editorScrollRef}
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              onScroll={() => syncScroll("editor")}
+              onScroll={syncScroll}
               placeholder="Écrivez en Markdown…"
               className="flex-1 min-h-0 font-mono text-sm resize-none"
             />

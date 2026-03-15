@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -27,12 +27,12 @@ interface IntercalaireCardProps {
 export function IntercalaireCard({ page, chapterId, classeurId, chapterName, classeurName, establishment, sortableDisabled, onExport, onEdit, onDelete }: IntercalaireCardProps) {
   const navigate = useNavigate()
 
-  const dragData: IntercalaireDragData = {
+  const dragData: IntercalaireDragData = useMemo(() => ({
     type: "intercalaire",
     pageId: page.id,
     pageTitle: page.title,
     sourceChapterId: chapterId,
-  }
+  }), [page.id, page.title, chapterId])
 
   const {
     attributes,
@@ -72,9 +72,14 @@ export function IntercalaireCard({ page, chapterId, classeurId, chapterName, cla
       {/* Header — icône + titre */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
         <BookMarked className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="text-xs font-medium truncate flex-1">
-          {page.title || "Sans titre"}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-xs font-medium truncate flex-1">
+              {page.title || "Sans titre"}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{page.title || "Sans titre"}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Miniature + boutons en surimpression */}

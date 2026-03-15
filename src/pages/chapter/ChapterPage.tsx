@@ -33,10 +33,7 @@ import { SignatureSheetCard } from "./SignatureSheetCard"
 import { EditChapterDialog } from "./EditChapterDialog"
 import { useDropZone, DropOverlay } from "./DropZone"
 import { emit, CHAPTERS_CHANGED } from "@/lib/events"
-
-/** Retire les diacritiques et passe en minuscule pour une recherche accent-insensible */
-const stripAccents = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+import { stripAccents } from "@/lib/utils"
 
 export default function ChapterPage() {
   const { chapterId, classeurId } = useParams<{ chapterId: string; classeurId: string }>()
@@ -163,14 +160,19 @@ export default function ChapterPage() {
 
   // Drag-and-drop fichiers (import)
   const handleImport = useCallback(async (files: { title: string; content: string }[]) => {
-    const nextOrder = localItems.length > 0
-      ? Math.max(...localItems.map((item) => item.data.sort_order)) + 1
-      : 1
-    for (let i = 0; i < files.length; i++) {
-      const { title, content } = files[i]
-      await insert({ title, content, chapter_id: chapterId ?? "", sort_order: nextOrder + i })
+    try {
+      const nextOrder = localItems.length > 0
+        ? Math.max(...localItems.map((item) => item.data.sort_order)) + 1
+        : 1
+      for (let i = 0; i < files.length; i++) {
+        const { title, content } = files[i]
+        await insert({ title, content, chapter_id: chapterId ?? "", sort_order: nextOrder + i })
+      }
+      refetch()
+      toast.success(`${files.length} fichier${files.length > 1 ? "s" : ""} importé${files.length > 1 ? "s" : ""}`)
+    } catch {
+      toast.error("Erreur lors de l'import des fichiers")
     }
-    refetch()
   }, [insert, chapterId, refetch, localItems])
 
   const { isDragOver, dragProps } = useDropZone(handleImport)
@@ -287,7 +289,7 @@ export default function ChapterPage() {
       setEditDoc(null)
       toast.success("Document modifié")
     } catch {
-      toast.error("Erreur lors de la modification")
+      toast.error("Erreur lors de la modification du document")
     }
   }, [editDoc, updateDoc, refetch])
 
@@ -346,7 +348,7 @@ export default function ChapterPage() {
       setEditSheet(null)
       toast.success("Feuille de suivi modifiée")
     } catch {
-      toast.error("Erreur lors de la modification")
+      toast.error("Erreur lors de la modification de la feuille de suivi")
     }
   }, [updateTs, tsRefetch])
 
@@ -370,7 +372,7 @@ export default function ChapterPage() {
       setEditSigSheet(null)
       toast.success("Feuille de signature modifiée")
     } catch {
-      toast.error("Erreur lors de la modification")
+      toast.error("Erreur lors de la modification de la feuille de signature")
     }
   }, [editSigSheet, updateSs, ssRefetch])
 
@@ -404,7 +406,7 @@ export default function ChapterPage() {
       setEditIntercalaire(null)
       toast.success("Intercalaire modifié")
     } catch {
-      toast.error("Erreur lors de la modification")
+      toast.error("Erreur lors de la modification de l'intercalaire")
     }
   }, [editIntercalaire, updateGp, gpRefetch])
 
@@ -434,7 +436,7 @@ export default function ChapterPage() {
       setDeleteItem(null)
       toast.error("Élément supprimé")
     } catch {
-      toast.error("Erreur lors de la suppression")
+      toast.error(`Erreur lors de la suppression de « ${deleteItem.item.title} »`)
     }
   }, [deleteItem, remove, removeTs, removeSs, removeGp, refetch, tsRefetch, ssRefetch, gpRefetch])
 
@@ -478,7 +480,7 @@ export default function ChapterPage() {
 
   if (chapterLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full" role="status" aria-label="Chargement">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
       </div>
     )
@@ -506,6 +508,7 @@ export default function ChapterPage() {
               placeholder="Rechercher dans le chapitre..."
               className="pl-9 h-9"
               onKeyDown={(e) => { if (e.key === "Escape") toggleSearch() }}
+              aria-label="Rechercher"
             />
           </div>
         ) : (
@@ -557,7 +560,7 @@ export default function ChapterPage() {
           {isDragOver && <DropOverlay />}
 
           {loading || tsLoading || ssLoading || gpLoading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-12" role="status" aria-label="Chargement">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
             </div>
           ) : localItems.length === 0 ? (

@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -28,12 +28,12 @@ interface TrackingSheetCardProps {
 export function TrackingSheetCard({ sheet, chapterId, classeurId, chapterName, classeurName, establishment, periodicite, sortableDisabled, onExport, onEdit, onDelete }: TrackingSheetCardProps) {
   const navigate = useNavigate()
 
-  const dragData: TrackingSheetDragData = {
+  const dragData: TrackingSheetDragData = useMemo(() => ({
     type: "tracking_sheet",
     sheetId: sheet.id,
     sheetTitle: sheet.title,
     sourceChapterId: chapterId,
-  }
+  }), [sheet.id, sheet.title, chapterId])
 
   const {
     attributes,
@@ -73,9 +73,14 @@ export function TrackingSheetCard({ sheet, chapterId, classeurId, chapterName, c
       {/* Header — icône + titre */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
         <Columns3 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="text-xs font-medium truncate flex-1">
-          {sheet.title || "Sans titre"}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-xs font-medium truncate flex-1">
+              {sheet.title || "Sans titre"}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{sheet.title || "Sans titre"}</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Miniature + boutons en surimpression */}

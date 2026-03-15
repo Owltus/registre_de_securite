@@ -16,23 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-interface TrackingSheet {
-  id: number
-  title: string
-  chapter_id: string
-  periodicite_id: number
-  sort_order: number
-  created_at: string
-  updated_at: string
-}
-
-interface Periodicite {
-  id: number
-  label: string
-  nombre: number
-  sort_order: number
-}
+import type { TrackingSheet, Periodicite } from "@/pages/chapter/types"
 
 export default function TrackingSheetDetail() {
   const {
@@ -85,7 +69,7 @@ export default function TrackingSheetDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full" role="status" aria-label="Chargement">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
       </div>
     )

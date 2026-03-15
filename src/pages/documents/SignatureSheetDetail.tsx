@@ -8,17 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { ArrowLeft, Eye, FileDown, Pencil, Save } from "lucide-react"
 import { Input } from "@/components/ui/input"
-
-interface SignatureSheet {
-  id: number
-  title: string
-  description: string
-  chapter_id: string
-  nombre: number
-  sort_order: number
-  created_at: string
-  updated_at: string
-}
+import type { SignatureSheet } from "@/pages/chapter/types"
 
 export default function SignatureSheetDetail() {
   const {
@@ -66,7 +56,7 @@ export default function SignatureSheetDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full" role="status" aria-label="Chargement">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
       </div>
     )
