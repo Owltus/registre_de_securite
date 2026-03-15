@@ -274,7 +274,7 @@ export default function ClasseurListPage() {
             >
               {isDragOver ? <Upload className="h-5 w-5 text-muted-foreground shrink-0" /> : <Download className="h-5 w-5 text-muted-foreground shrink-0" />}
               <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">{isDragOver ? "Déposez ici" : "Importer"}</span>
+                <span className="text-sm font-medium">{isDragOver ? "Déposez ici" : "Importer classeur"}</span>
                 {!isDragOver && <span className="text-xs text-muted-foreground">Depuis un fichier .json</span>}
               </div>
             </button>

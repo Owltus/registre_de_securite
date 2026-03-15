@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "rea
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Plus, Printer, List, FileArchive, Settings, FileUp, FileDown, Search, Upload, Loader2 } from "lucide-react"
+import { X, Plus, Printer, List, Archive, Pencil, FileUp, FileDown, Search, Upload, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { DEFAULT_REGISTRY_NAME, buildEstablishment, type ChapterRow, type ClasseurRow } from "@/lib/navigation"
 import { useQuery } from "@/lib/hooks/useQuery"
 import { useMutation } from "@/lib/hooks/useMutation"
@@ -253,8 +254,8 @@ export default function DashboardPage() {
           .filter((d) => String(d.chapter_id) === String(ch.id))
           .map((d) => ({ title: d.title, content: d.content })),
       }))
-      await exportClasseurZip(classeurName, data)
-      toast.info("Export Markdown terminé")
+      const path = await exportClasseurZip(classeurName, data)
+      if (path) toast.info("Export Markdown terminé")
     } catch {
       toast.error("Erreur lors de l'export Markdown")
     } finally {
@@ -378,19 +379,27 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Barre de recherche — toujours visible */}
-      <div className="px-6 pt-6 pb-2">
-        <div className="relative">
+      {/* Header */}
+      <div className="flex items-center gap-2 p-2 border-b border-border">
+        <div className="relative flex-1 min-w-0 ml-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Rechercher dans le classeur..."
-            className="pl-9"
+            className="pl-9 h-9"
             disabled={!dataLoaded}
             aria-label="Rechercher"
           />
         </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={openEditDialog} aria-label="Édition">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Édition</TooltipContent>
+        </Tooltip>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -470,26 +479,17 @@ export default function DashboardPage() {
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col gap-4 max-w-md w-full">
 
-              {/* Nouveau chapitre + Paramètres */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setCreateOpen(true)}
-                  className="flex items-center gap-4 rounded-lg border border-dashed bg-card px-5 py-4 hover:bg-accent transition-colors text-left flex-1"
-                >
-                  <Plus className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">Nouveau chapitre</span>
-                    <span className="text-xs text-muted-foreground">Ajouter un chapitre au classeur</span>
-                  </div>
-                </button>
-                <button
-                  onClick={openEditDialog}
-                  className="flex items-center justify-center rounded-lg border bg-card px-3 hover:bg-accent transition-colors shrink-0"
-                  aria-label="Paramètres du classeur"
-                >
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                </button>
-              </div>
+              {/* Nouveau chapitre */}
+              <button
+                onClick={() => setCreateOpen(true)}
+                className="flex items-center gap-4 rounded-lg border border-dashed bg-card px-5 py-4 hover:bg-accent transition-colors text-left"
+              >
+                <Plus className="h-5 w-5 text-muted-foreground shrink-0" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">Nouveau chapitre</span>
+                  <span className="text-xs text-muted-foreground">Ajouter un chapitre au classeur</span>
+                </div>
+              </button>
 
               {/* Sommaire + PDF */}
               <div className="grid grid-cols-2 gap-3">
@@ -524,7 +524,7 @@ export default function DashboardPage() {
                 onClick={handleExportMarkdown}
                 className="flex items-center gap-4 rounded-lg border bg-card px-5 py-4 hover:bg-accent transition-colors text-left disabled:opacity-40 disabled:pointer-events-none"
               >
-                {busy === "markdown" ? <Loader2 className="h-5 w-5 text-muted-foreground shrink-0 animate-spin" /> : <FileArchive className="h-5 w-5 text-muted-foreground shrink-0" />}
+                {busy === "markdown" ? <Loader2 className="h-5 w-5 text-muted-foreground shrink-0 animate-spin" /> : <Archive className="h-5 w-5 text-muted-foreground shrink-0" />}
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm font-medium">{busy === "markdown" ? "Export en cours..." : "Exporter en Markdown"}</span>
                   <span className="text-xs text-muted-foreground">Archive ZIP contenant tous les documents</span>
@@ -539,7 +539,7 @@ export default function DashboardPage() {
                   {busy === "json" ? <Loader2 className="h-5 w-5 text-muted-foreground shrink-0 animate-spin" /> : <FileUp className="h-5 w-5 text-muted-foreground shrink-0" />}
                   <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-medium">{busy === "json" ? "Export en cours..." : "Exporter en JSON"}</span>
-                    <span className="text-xs text-muted-foreground">Format lisible et modifiable</span>
+                    <span className="text-xs text-muted-foreground">Sauvegarde éditable du classeur</span>
                   </div>
                 </button>
                 <button
@@ -554,7 +554,7 @@ export default function DashboardPage() {
                   {busy === "import" ? <Loader2 className="h-5 w-5 text-muted-foreground shrink-0 animate-spin" /> : isDragOver ? <Upload className="h-5 w-5 text-muted-foreground shrink-0" /> : <FileDown className="h-5 w-5 text-muted-foreground shrink-0" />}
                   <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-medium">{busy === "import" ? "Import en cours..." : isDragOver ? "Déposez ici" : "Importer un JSON"}</span>
-                    {!isDragOver && busy !== "import" && <span className="text-xs text-muted-foreground">Merge intelligent sans suppression</span>}
+                    {!isDragOver && busy !== "import" && <span className="text-xs text-muted-foreground">Mettre à jour depuis un export</span>}
                   </div>
                 </button>
               </div>

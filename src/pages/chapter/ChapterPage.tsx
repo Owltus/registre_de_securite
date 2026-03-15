@@ -19,7 +19,7 @@ import { IntercalaireSheet } from "@/components/print/IntercalaireSheet"
 import { CoverPage } from "@/components/print/CoverPage"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { Plus, FileText, Pencil, Printer, Search, X } from "lucide-react"
+import { Plus, FileText, Pencil, Printer, Search, X, Archive } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import type { Doc, TrackingSheet, SignatureSheet, Intercalaire, Periodicite, ChapterItem } from "./types"
 import { DocumentCard } from "./DocumentCard"
@@ -33,6 +33,7 @@ import { SignatureSheetCard } from "./SignatureSheetCard"
 import { EditChapterDialog } from "./EditChapterDialog"
 import { useDropZone, DropOverlay } from "./DropZone"
 import { emit, CHAPTERS_CHANGED } from "@/lib/events"
+import { exportClasseurZip, type ExportChapter } from "@/lib/exportMarkdown"
 import { stripAccents } from "@/lib/utils"
 
 export default function ChapterPage() {
@@ -478,6 +479,21 @@ export default function ChapterPage() {
     return labels[deleteItem.kind]
   }, [deleteItem])
 
+  const handleExportMarkdown = useCallback(async () => {
+    if (!chapter) return
+    try {
+      const data: ExportChapter[] = [{
+        label: chapter.label,
+        sortOrder: chapter.sort_order,
+        documents: docs.map((d) => ({ title: d.title, content: d.content })),
+      }]
+      const path = await exportClasseurZip(`${classeurName} - ${chapter.label}`, data)
+      if (path) toast.info("Export Markdown terminé")
+    } catch {
+      toast.error("Erreur lors de l'export Markdown")
+    }
+  }, [chapter, docs])
+
   if (chapterLoading) {
     return (
       <div className="flex items-center justify-center h-full" role="status" aria-label="Chargement">
@@ -532,6 +548,14 @@ export default function ChapterPage() {
             </Button>
           </TooltipTrigger>
           <TooltipContent>Tout imprimer</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleExportMarkdown} aria-label="Exporter en Markdown">
+              <Archive className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Exporter en Markdown</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>

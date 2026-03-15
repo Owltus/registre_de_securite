@@ -113,9 +113,6 @@ CREATE TABLE IF NOT EXISTS merge_history (
 
 -- Donnees par defaut
 
--- Classeur par defaut
-INSERT INTO classeurs (id, name, sort_order) VALUES (1, 'Mon classeur', 1);
-
 -- Periodicites de suivi
 INSERT INTO periodicites (label, nombre, sort_order) VALUES
     ('Mensuel',        8, 1),
