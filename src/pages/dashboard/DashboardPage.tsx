@@ -404,75 +404,77 @@ export default function DashboardPage() {
 
       <div className="flex-1 overflow-y-auto p-6">
         {debouncedQuery ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-              {searchResults.length > 0
-                ? `${searchResults.length} résultat${searchResults.length > 1 ? "s" : ""}`
-                : "Aucun résultat"}
-            </p>
-            {searchResults.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-                  {searchResults.map((item) => {
-                    const chId = item.chapterId
-                    const perio = item.kind === "tracking_sheet"
-                      ? periodicites.find((p) => p.id === item.data.periodicite_id)
-                      : undefined
-                    return (
-                      <div key={`${item.kind}-${item.data.id}`} className="flex flex-col gap-1">
-                        {item.kind === "document" && (
-                          <DocumentCard
-                            doc={item.data}
-                            chapterId={chId}
-                            classeurId={classeurId}
-                            chapterName={item.chapterName}
-                            classeurName={classeurName}
-                            establishment={establishment}
-                            sortableDisabled
-
-                          />
-                        )}
-                        {item.kind === "tracking_sheet" && (
-                          <TrackingSheetCard
-                            sheet={item.data}
-                            chapterId={chId}
-                            classeurId={classeurId}
-                            chapterName={item.chapterName}
-                            classeurName={classeurName}
-                            establishment={establishment}
-                            periodicite={perio}
-                            sortableDisabled
-
-                          />
-                        )}
-                        {item.kind === "signature_sheet" && (
-                          <SignatureSheetCard
-                            sheet={item.data}
-                            chapterId={chId}
-                            classeurId={classeurId}
-                            chapterName={item.chapterName}
-                            classeurName={classeurName}
-                            establishment={establishment}
-                            sortableDisabled
-
-                          />
-                        )}
-                        {item.kind === "intercalaire" && (
-                          <IntercalaireCard
-                            page={item.data}
-                            chapterId={chId}
-                            classeurId={classeurId}
-                            chapterName={item.chapterName}
-                            classeurName={classeurName}
-                            establishment={establishment}
-                            sortableDisabled
-
-                          />
-                        )}
-                        <span className="text-xs text-muted-foreground truncate px-1">{item.chapterName}</span>
-                      </div>
-                    )
-                  })}
-                </div>
+          <div className="flex flex-col gap-4 h-full">
+            {searchResults.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-center text-muted-foreground">
+                <Search className="h-10 w-10 mb-3 opacity-50" />
+                <p className="font-medium">Aucun résultat</p>
+                <p className="text-sm mt-1">Aucun élément ne correspond à votre recherche</p>
+              </div>
+            ) : (
+              <>
+              <p className="text-sm text-muted-foreground">
+                {`${searchResults.length} résultat${searchResults.length > 1 ? "s" : ""}`}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                {searchResults.map((item) => {
+                  const chId = item.chapterId
+                  const perio = item.kind === "tracking_sheet"
+                    ? periodicites.find((p) => p.id === item.data.periodicite_id)
+                    : undefined
+                  return (
+                    <div key={`${item.kind}-${item.data.id}`} className="flex flex-col gap-1">
+                      {item.kind === "document" && (
+                        <DocumentCard
+                          doc={item.data}
+                          chapterId={chId}
+                          classeurId={classeurId}
+                          chapterName={item.chapterName}
+                          classeurName={classeurName}
+                          establishment={establishment}
+                          sortableDisabled
+                        />
+                      )}
+                      {item.kind === "tracking_sheet" && (
+                        <TrackingSheetCard
+                          sheet={item.data}
+                          chapterId={chId}
+                          classeurId={classeurId}
+                          chapterName={item.chapterName}
+                          classeurName={classeurName}
+                          establishment={establishment}
+                          periodicite={perio}
+                          sortableDisabled
+                        />
+                      )}
+                      {item.kind === "signature_sheet" && (
+                        <SignatureSheetCard
+                          sheet={item.data}
+                          chapterId={chId}
+                          classeurId={classeurId}
+                          chapterName={item.chapterName}
+                          classeurName={classeurName}
+                          establishment={establishment}
+                          sortableDisabled
+                        />
+                      )}
+                      {item.kind === "intercalaire" && (
+                        <IntercalaireCard
+                          page={item.data}
+                          chapterId={chId}
+                          classeurId={classeurId}
+                          chapterName={item.chapterName}
+                          classeurName={classeurName}
+                          establishment={establishment}
+                          sortableDisabled
+                        />
+                      )}
+                      <span className="text-xs text-muted-foreground truncate px-1">{item.chapterName}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              </>
             )}
           </div>
         ) : (
