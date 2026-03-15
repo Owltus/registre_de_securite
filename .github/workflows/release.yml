@@ -43,9 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-binaries
-          path: |
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-            src-tauri/target/x86_64-pc-windows-msvc/release/registre.exe
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/registre.exe
 
   release:
     needs: build
@@ -71,10 +69,7 @@ jobs:
           VERSION="${{ steps.version.outputs.VERSION }}"
           mkdir -p release
 
-          SETUP=$(find artifacts -name "*.exe" -path "*/nsis/*" | head -1)
-          PORTABLE=$(find artifacts -name "registre.exe" -not -path "*/bundle/*" | head -1)
-
-          [ -n "$SETUP" ] && cp "$SETUP" "release/registre-${VERSION}-setup.exe"
+          PORTABLE=$(find artifacts -name "registre.exe" | head -1)
           [ -n "$PORTABLE" ] && cp "$PORTABLE" "release/registre.exe"
 
           ls -la release/
@@ -107,14 +102,9 @@ jobs:
           REPO="${{ github.repository }}"
           DL="https://github.com/${REPO}/releases/download/v${VERSION}"
           {
-            echo "## Registre v${VERSION}"
-            echo ""
             echo "### Telechargement"
             echo ""
-            echo "| Fichier | Description |"
-            echo "|---------|-------------|"
-            echo "| [registre-${VERSION}-setup.exe](${DL}/registre-${VERSION}-setup.exe) | Installeur Windows |"
-            echo "| [registre.exe](${DL}/registre.exe) | Version portable |"
+            echo "- [registre.exe](${DL}/registre.exe)"
             echo ""
             echo "### Changelog"
             echo ""
@@ -126,6 +116,7 @@ jobs:
             echo "$HASHES" | while read h; do
               SUBJECT=$(git log -1 --pretty=format:"%s" "$h")
               BODY=$(git log -1 --pretty=format:"%b" "$h")
+              DATE=$(git log -1 --pretty=format:"%ad" --date=format:"%d/%m/%Y" "$h")
 
               # Extraire le type (feat, fix, refactor...)
               TYPE=$(echo "$SUBJECT" | sed -n 's/^\([a-z]*\).*/\1/p')
@@ -139,7 +130,7 @@ jobs:
                 echo ""
                 echo "#### ${TITLE}"
                 echo ""
-                echo "\`${h}\` — ${TYPE}"
+                echo "\`${h}\` — ${TYPE} — ${DATE}"
                 echo ""
               } >> release-notes.md
 
