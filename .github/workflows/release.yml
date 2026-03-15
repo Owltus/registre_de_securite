@@ -10,18 +10,7 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -37,35 +26,26 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-pc-windows-msvc
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build Tauri
-        run: pnpm tauri build --target ${{ matrix.target }}
+        run: pnpm tauri build --target x86_64-pc-windows-msvc
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-${{ matrix.target }}
+          name: windows-binaries
           path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
-            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
-            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
-            src-tauri/target/${{ matrix.target }}/release/registre.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/registre.exe
 
   release:
     needs: build
@@ -80,29 +60,22 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
+          name: windows-binaries
           path: artifacts
 
       - name: Preparer les fichiers de release
-        id: prepare
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
           mkdir -p release
 
-          copy_artifact() {
-            local dest="$1"; shift
-            local src
-            src=$(find artifacts "$@" | head -1)
-            [ -n "$src" ] && cp "$src" "release/$dest"
-          }
+          SETUP=$(find artifacts -name "*.exe" -path "*/nsis/*" | head -1)
+          PORTABLE=$(find artifacts -name "registre.exe" -not -path "*/bundle/*" | head -1)
 
-          copy_artifact "registre-${VERSION}-setup.exe" -name "*.exe" -path "*/nsis/*"
-          copy_artifact "registre.exe"                  -name "registre.exe" -not -path "*/bundle/*"
-          copy_artifact "registre-${VERSION}.dmg"       -name "*.dmg"
-          copy_artifact "registre-${VERSION}.deb"       -name "*.deb"
-          copy_artifact "registre-${VERSION}.AppImage"  -name "*.AppImage"
+          [ -n "$SETUP" ] && cp "$SETUP" "release/registre-${VERSION}-setup.exe"
+          [ -n "$PORTABLE" ] && cp "$PORTABLE" "release/registre.exe"
 
           ls -la release/
 
@@ -120,59 +93,80 @@ jobs:
             RANGE="${PREV_TAG}..${CURRENT_TAG}"
           fi
 
-          echo "DEBUG: CURRENT_TAG=$CURRENT_TAG PREV_TAG=$PREV_TAG"
-          echo "DEBUG: RANGE=$RANGE"
-          echo "DEBUG: commits found=$(git log "$RANGE" --oneline --no-merges | wc -l)"
+          # Recuperer les commits (sans les releases)
+          HASHES=$(git log "$RANGE" --pretty=format:"%h" --no-merges | while read h; do
+            subject=$(git log -1 --pretty=format:"%s" "$h")
+            echo "$subject" | grep -qE "^(build|chore): release" && continue
+            echo "$h"
+          done)
 
-          # Parser les commits par categorie (|| true evite l'echec si grep ne matche rien)
-          FEATS=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep "^feat" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //' | sed 's/^./\U&/' || true)
-          FIXES=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep "^fix" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //' | sed 's/^./\U&/' || true)
-          OTHERS=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep -v "^feat" | grep -v "^fix" | grep -v "^build: release" | grep -v "^chore: release" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //' | sed 's/^./\U&/' || true)
+          COMMIT_COUNT=$(echo "$HASHES" | grep -c . || echo "0")
+          PREV_VERSION="${PREV_TAG#v}"
 
-          echo "DEBUG: FEATS='$FEATS'"
-          echo "DEBUG: FIXES='$FIXES'"
-          echo "DEBUG: OTHERS='$OTHERS'"
-
-          # Construire le body
+          # Construire le header
           REPO="${{ github.repository }}"
           DL="https://github.com/${REPO}/releases/download/v${VERSION}"
           {
-            echo "# Registre"
+            echo "## Registre v${VERSION}"
             echo ""
-            echo "## Telecharger"
+            echo "### Telechargement"
             echo ""
-            echo "### Windows"
+            echo "| Fichier | Description |"
+            echo "|---------|-------------|"
+            echo "| [registre-${VERSION}-setup.exe](${DL}/registre-${VERSION}-setup.exe) | Installeur Windows |"
+            echo "| [registre.exe](${DL}/registre.exe) | Version portable |"
             echo ""
-            echo "- [registre-${VERSION}-setup.exe](${DL}/registre-${VERSION}-setup.exe) — Installeur"
-            echo "- [registre.exe](${DL}/registre.exe) — Portable (sans installation)"
+            echo "### Changelog"
             echo ""
-            echo "### macOS"
-            echo ""
-            echo "- [registre-${VERSION}.dmg](${DL}/registre-${VERSION}.dmg) — Installeur"
-            echo ""
-            echo "### Linux"
-            echo ""
-            echo "- [registre-${VERSION}.deb](${DL}/registre-${VERSION}.deb) — Debian / Ubuntu"
-            echo "- [registre-${VERSION}.AppImage](${DL}/registre-${VERSION}.AppImage) — Toutes distributions"
-            echo ""
-            echo "---"
-            echo ""
-            echo "## Notes de mise a jour"
+            echo "> ${COMMIT_COUNT} modifications depuis la version ${PREV_VERSION:-initiale}"
           } > release-notes.md
 
-          if [ -n "$FEATS" ]; then
-            printf "\n### Nouveautes\n\n" >> release-notes.md
-            echo "$FEATS" | sed 's/^/- /' >> release-notes.md
-          fi
+          # Generer le detail de chaque commit
+          if [ -n "$HASHES" ]; then
+            echo "$HASHES" | while read h; do
+              SUBJECT=$(git log -1 --pretty=format:"%s" "$h")
+              BODY=$(git log -1 --pretty=format:"%b" "$h")
 
-          if [ -n "$FIXES" ]; then
-            printf "\n### Corrections\n\n" >> release-notes.md
-            echo "$FIXES" | sed 's/^/- /' >> release-notes.md
-          fi
+              # Extraire le type (feat, fix, refactor...)
+              TYPE=$(echo "$SUBJECT" | sed -n 's/^\([a-z]*\).*/\1/p')
 
-          if [ -n "$OTHERS" ]; then
-            printf "\n### Ameliorations\n\n" >> release-notes.md
-            echo "$OTHERS" | sed 's/^/- /' >> release-notes.md
+              # Nettoyer le titre : retirer le prefixe conventionnel
+              TITLE=$(echo "$SUBJECT" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //' | sed 's/^./\U&/')
+
+              {
+                echo ""
+                echo "---"
+                echo ""
+                echo "#### ${TITLE}"
+                echo ""
+                echo "\`${h}\` — ${TYPE}"
+                echo ""
+              } >> release-notes.md
+
+              if [ -n "$BODY" ]; then
+                # Premiere ligne du body = resume
+                SUMMARY=$(echo "$BODY" | head -1)
+                # Le reste = detail
+                DETAIL=$(echo "$BODY" | tail -n +2)
+
+                echo "${SUMMARY}" >> release-notes.md
+
+                if [ -n "$(echo "$DETAIL" | tr -d '[:space:]')" ]; then
+                  {
+                    echo ""
+                    echo "<details>"
+                    echo "<summary>Voir le detail</summary>"
+                    echo ""
+                    echo "$DETAIL"
+                    echo ""
+                    echo "</details>"
+                  } >> release-notes.md
+                fi
+              fi
+            done
+          else
+            echo "" >> release-notes.md
+            echo "_Aucune modification notable._" >> release-notes.md
           fi
 
           cat release-notes.md
