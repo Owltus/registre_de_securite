@@ -58,4 +58,10 @@ Tauri v2 · React · TypeScript · SQLite · Tailwind CSS
 
 ## Licence
 
-MIT
+Ce projet est distribué sous licence **Propriétaire Source-Available** — voir [LICENSE](LICENSE).
+
+**Usages autorisés sans licence :** usage personnel, associations loi 1901 et établissements d'enseignement.
+
+**Usage commercial :** toute utilisation professionnelle, en entreprise ou dans une administration non éducative nécessite l'obtention d'une licence commerciale.
+
+Contact : pl.bessonneau@gmail.com

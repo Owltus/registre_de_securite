@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Sun, Moon, Palette, Info, X, Database, FolderOpen, History, RotateCcw, Trash2, Download } from "lucide-react"
+import { Sun, Moon, Palette, Info, X, Database, FolderOpen, History, RotateCcw, Trash2, Download, AppWindow, Tag, User } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
@@ -9,6 +9,8 @@ import { getStoredTheme, setTheme, type Theme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 import { emit, CHAPTERS_CHANGED } from "@/lib/events"
 import { getMergeHistory, rollbackMerge, deleteMergeEntry, downloadMergeSnapshot, type MergeHistoryEntry } from "@/lib/exportMarkdown"
+import { Scale } from "lucide-react"
+import licenseText from "@/assets/license.txt?raw"
 
 interface AppInfo {
   name: string
@@ -45,6 +47,7 @@ export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }:
   const [mergeHistory, setMergeHistory] = useState<MergeHistoryEntry[]>([])
   const [busy, setBusy] = useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<MergeHistoryEntry | null>(null)
+  const [licenseOpen, setLicenseOpen] = useState(false)
 
   // Détecte si la nav interne est rétractée (icônes seules)
   const [isCollapsed, setIsCollapsed] = useState(() => !window.matchMedia(SM_QUERY).matches)
@@ -341,13 +344,34 @@ export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }:
                 <section>
                   <h2 className="text-base font-semibold">À propos</h2>
                   {info ? (
-                    <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                      <dt className="text-muted-foreground">Application</dt>
+                    <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm items-center">
+                      <dt className="text-muted-foreground flex items-center gap-2">
+                        <AppWindow className="h-4 w-4" />
+                        Application
+                      </dt>
                       <dd>{info.name}</dd>
-                      <dt className="text-muted-foreground">Version</dt>
+                      <dt className="text-muted-foreground flex items-center gap-2">
+                        <Tag className="h-4 w-4" />
+                        Version
+                      </dt>
                       <dd>{info.version}</dd>
-                      <dt className="text-muted-foreground">Auteur</dt>
+                      <dt className="text-muted-foreground flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Auteur
+                      </dt>
                       <dd>Owltus</dd>
+                      <dt className="text-muted-foreground flex items-center gap-2">
+                        <Scale className="h-4 w-4" />
+                        Licence
+                      </dt>
+                      <dd>
+                        <button
+                          onClick={() => setLicenseOpen(true)}
+                          className="text-left hover:underline transition-colors"
+                        >
+                          Propriétaire Source-Available
+                        </button>
+                      </dd>
                     </dl>
                   ) : (
                     <p className="mt-2 text-sm text-muted-foreground">Chargement...</p>
@@ -406,6 +430,32 @@ export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }:
 
             <Dialog.Description className="sr-only">
               Confirmer la suppression de la sauvegarde
+            </Dialog.Description>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Dialog licence */}
+      <Dialog.Root open={licenseOpen} onOpenChange={setLicenseOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/60" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-2xl h-[70vh] border bg-background shadow-lg rounded-lg flex flex-col overflow-hidden focus:outline-none">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <Dialog.Title className="text-lg font-semibold">
+                Licence
+              </Dialog.Title>
+              <Dialog.Close className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Fermer</span>
+              </Dialog.Close>
+            </div>
+            <div className="flex-1 overflow-auto px-6 py-4">
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                {licenseText}
+              </pre>
+            </div>
+            <Dialog.Description className="sr-only">
+              Contenu de la licence du logiciel
             </Dialog.Description>
           </Dialog.Content>
         </Dialog.Portal>
