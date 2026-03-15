@@ -43,6 +43,13 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0"
   },
+  "bumpp": {
+    "files": [
+      "package.json",
+      "src-tauri/Cargo.toml",
+      "src-tauri/tauri.conf.json"
+    ]
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@tauri-apps/cli": "^2.10.0",

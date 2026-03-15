@@ -492,7 +492,7 @@ export default function ChapterPage() {
     } catch {
       toast.error("Erreur lors de l'export Markdown")
     }
-  }, [chapter, docs])
+  }, [chapter, docs, classeurName])
 
   if (chapterLoading) {
     return (
