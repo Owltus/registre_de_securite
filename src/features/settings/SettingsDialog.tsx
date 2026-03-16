@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Sun, Moon, Palette, Info, X, Database, FolderOpen, History, RotateCcw, Trash2, Download, AppWindow, Tag, User } from "lucide-react"
+import { Sun, Moon, Palette, Info, X, Database, FolderOpen, History, RotateCcw, Trash2, Download, AppWindow, Tag, User, Scale } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
@@ -9,8 +9,7 @@ import { getStoredTheme, setTheme, type Theme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 import { emit, CHAPTERS_CHANGED } from "@/lib/events"
 import { getMergeHistory, rollbackMerge, deleteMergeEntry, downloadMergeSnapshot, type MergeHistoryEntry } from "@/lib/exportMarkdown"
-import { Scale } from "lucide-react"
-import licenseText from "@/assets/license.txt?raw"
+import licenseText from "../../../LICENSE?raw"
 
 interface AppInfo {
   name: string
@@ -142,7 +141,7 @@ export function SettingsDialog({ open, onOpenChange, classeurId, classeurName }:
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={(o) => { if (!o) { setLicenseOpen(false); setDeleteTarget(null) } onOpenChange(o) }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-3xl h-[75vh] border bg-background shadow-lg rounded-lg flex flex-col overflow-hidden focus:outline-none">
