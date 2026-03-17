@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import * as Dialog from "@radix-ui/react-dialog"
-import { Plus, X, Trash2, Download, Upload } from "lucide-react"
+import { Plus, X, Trash2, Download, Upload, FileUp } from "lucide-react"
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import type { DragEndEvent } from "@dnd-kit/core"
@@ -16,7 +16,7 @@ import { sqliteAdapter } from "@/lib/db/sqlite"
 import { emit, on, CLASSEURS_CHANGED } from "@/lib/events"
 import { useDndRegistry } from "@/lib/dnd/useDndRegistry"
 import { IconPicker } from "@/components/IconPicker"
-import { importClasseur, importJsonAsNewClasseurFromBytes } from "@/lib/exportMarkdown"
+import { importClasseur, importJsonAsNewClasseurFromBytes, exportClasseurJson } from "@/lib/exportMarkdown"
 
 
 /** Carte de classeur réordonnnable par drag-and-drop */
@@ -25,11 +25,13 @@ function SortableClasseurCard({
   icon: Icon,
   onNavigate,
   onDelete,
+  onExport,
 }: {
   classeur: ClasseurRow
   icon: React.ComponentType<{ className?: string }>
   onNavigate: () => void
   onDelete: () => void
+  onExport: () => void
 }) {
   const subtitle = [classeur.etablissement, classeur.etablissement_complement].filter(Boolean).join(" · ")
 
@@ -67,6 +69,19 @@ function SortableClasseurCard({
           <span className="text-sm font-medium truncate">{classeur.name}</span>
           {subtitle && <span className="text-xs text-muted-foreground truncate">{subtitle}</span>}
         </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              role="button"
+              onClick={(e) => { e.stopPropagation(); onExport() }}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              aria-label="Exporter JSON"
+            >
+              <FileUp className="h-3.5 w-3.5" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Exporter JSON</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <div
@@ -299,6 +314,7 @@ export default function ClasseurListPage() {
                   icon={getChapterIcon(cl.icon)}
                   onNavigate={() => navigate(`/classeurs/${cl.id}`)}
                   onDelete={() => setDeleteTarget(cl)}
+                  onExport={() => exportClasseurJson(cl.name, cl.id)}
                 />
               ))}
             </SortableContext>

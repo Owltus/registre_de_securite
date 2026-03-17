@@ -231,15 +231,16 @@ export default function DashboardPage() {
     const chSheets = allTrackingSheets.filter((s) => String(s.chapter_id) === String(ch.id))
     const chSigs = allSignatureSheets.filter((s) => String(s.chapter_id) === String(ch.id))
     const chGardes = allIntercalaires.filter((g) => String(g.chapter_id) === String(ch.id))
+    const allChapterItems = [
+      ...chDocs.map(d => ({ sort: d.sort_order, title: d.title || "Sans titre" })),
+      ...chSheets.map(s => ({ sort: s.sort_order, title: s.title || "Sans titre" })),
+      ...chSigs.map(s => ({ sort: s.sort_order, title: s.title || "Sans titre" })),
+      ...chGardes.map(g => ({ sort: g.sort_order, title: g.title || "Sans titre" })),
+    ].sort((a, b) => a.sort - b.sort)
     return {
       chapter: ch,
       number: i + 1,
-      items: [
-        ...chDocs.map((d) => d.title || "Sans titre"),
-        ...chSheets.map((s) => s.title || "Sans titre"),
-        ...chSigs.map((s) => s.title || "Sans titre"),
-        ...chGardes.map((g) => g.title || "Sans titre"),
-      ],
+      items: allChapterItems.map(item => item.title),
     }
   }), [sortedChapters, allDocs, allTrackingSheets, allSignatureSheets, allIntercalaires])
 

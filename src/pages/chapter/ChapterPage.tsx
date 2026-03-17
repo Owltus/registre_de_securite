@@ -113,14 +113,15 @@ export default function ChapterPage() {
 
   // Multi-sélection
   const selection = useSelection()
+  const clearSelection = selection.clear
 
   // Dialogs bulk
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   // Vider la sélection quand on change de chapitre
   useEffect(() => {
-    selection.clear()
-  }, [chapterId, selection])
+    clearSelection()
+  }, [chapterId, clearSelection])
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editChapterOpen, setEditChapterOpen] = useState(false)

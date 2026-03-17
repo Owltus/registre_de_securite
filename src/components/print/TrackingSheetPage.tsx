@@ -28,7 +28,7 @@ export function TrackingSheetPage({
   return (
     <A4Page
       title={title}
-      subtitle={periodiciteLabel}
+      subtitle={periodiciteLabel === "Non defini" ? "" : periodiciteLabel}
       chapterName={chapterName}
       classeurName={classeurName}
       establishment={establishment}
