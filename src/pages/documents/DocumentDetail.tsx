@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react"
 import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useDetailPage } from "@/lib/hooks/useDetailPage"
@@ -36,6 +36,15 @@ export default function DocumentDetail() {
   // Contenu debounced pour l'aperçu A4 (évite des re-paginations à chaque frappe)
   const [debouncedContent, setDebouncedContent] = useState("")
 
+  // Préservation du scroll du panneau preview lors des re-paginations
+  const savedPreviewScroll = useRef(0)
+
+  const handlePreviewScroll = useCallback(() => {
+    if (previewScrollRef.current) {
+      savedPreviewScroll.current = previewScrollRef.current.scrollTop
+    }
+  }, [])
+
   // Synchroniser le state local quand le document est chargé
   useEffect(() => {
     if (doc) {
@@ -52,6 +61,12 @@ export default function DocumentDetail() {
     const timer = setTimeout(() => setDebouncedContent(editContent), 300)
     return () => clearTimeout(timer)
   }, [editContent])
+
+  // Restaurer le scroll du preview après re-pagination (avant le paint)
+  useLayoutEffect(() => {
+    const el = previewScrollRef.current
+    if (el) el.scrollTop = savedPreviewScroll.current
+  }, [debouncedContent])
 
   // Ref combiné pour le scroll synchronisé ET le ResizeObserver
   const combinedPreviewRef = useCallback((node: HTMLDivElement | null) => {
@@ -241,6 +256,7 @@ export default function DocumentDetail() {
           {/* Aperçu A4 temps réel (gauche) */}
           <div
             ref={combinedPreviewRef}
+            onScroll={handlePreviewScroll}
             className="w-1/2 overflow-y-auto border-r border-border bg-muted/30"
           >
             <div className="flex flex-col items-center gap-4 py-4" style={{ zoom: scale }}>

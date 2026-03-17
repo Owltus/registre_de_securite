@@ -248,10 +248,7 @@ export default function ChapterPage() {
             }
           })
         )
-        refetch()
-        tsRefetch()
-        ssRefetch()
-        gpRefetch()
+        refetch(); tsRefetch(); ssRefetch(); gpRefetch()
       }
     },
     [localItems, setLocalItems, updateDoc, updateTs, updateSs, updateGp, refetch, tsRefetch, ssRefetch, gpRefetch]
