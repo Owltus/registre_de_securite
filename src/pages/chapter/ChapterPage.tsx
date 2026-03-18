@@ -36,6 +36,7 @@ import { emit, CHAPTERS_CHANGED } from "@/lib/events"
 import { exportClasseurZip, type ExportChapter } from "@/lib/exportMarkdown"
 import { stripAccents } from "@/lib/utils"
 import { useSelection, toSelectionKey, fromSelectionKey } from "./hooks/useSelection"
+import { useChapterZoom } from "@/lib/hooks/useChapterZoom"
 import { BulkDeleteDialog } from "./BulkDeleteDialog"
 
 /** Stratégie de tri no-op pour désactiver le réordonnancement visuel en mode sélection */
@@ -125,6 +126,9 @@ export default function ChapterPage() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editChapterOpen, setEditChapterOpen] = useState(false)
+
+  // Zoom adaptatif des cartes (Ctrl+molette)
+  const { gridStyle, containerRef: zoomContainerRef } = useChapterZoom()
 
   // Recherche locale dans le chapitre
   const [searchOpen, setSearchOpen] = useState(false)
@@ -676,7 +680,11 @@ export default function ChapterPage() {
             </div>
           ) : (
             <SortableContext items={sortableIds} strategy={selection.selectionMode ? noopStrategy : rectSortingStrategy} disabled={!!debouncedQuery}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              <div
+                ref={zoomContainerRef}
+                className="grid gap-4"
+                style={gridStyle}
+              >
                 {filteredItems.map((item) => {
                   const selKey = toSelectionKey(item.kind, item.data.id)
                   return item.kind === "document" ? (
