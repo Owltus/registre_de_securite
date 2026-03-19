@@ -93,24 +93,22 @@ export function useChapterZoom() {
   useEffect(() => { zoomRef.current = zoom }, [zoom])
   useEffect(() => { resetRef.current = reset }, [reset])
 
-  // Wheel handler stable
-  const wheelHandler = useCallback((e: WheelEvent) => {
-    if (!e.ctrlKey) return
-    e.preventDefault()
-    zoomRef.current(e.deltaY > 0 ? -1 : 1)
+  // Ctrl+molette : écoute globale (pas besoin de hover sur la grille)
+  useEffect(() => {
+    function onWheel(e: WheelEvent) {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      zoomRef.current(e.deltaY > 0 ? -1 : 1)
+    }
+    window.addEventListener("wheel", onWheel, { passive: false })
+    return () => window.removeEventListener("wheel", onWheel)
   }, [])
 
-  // Ref callback unique : wheel listener + ResizeObserver
+  // Ref callback : ResizeObserver uniquement
   const containerRef = useCallback((node: HTMLElement | null) => {
-    if (nodeRef.current) {
-      nodeRef.current.removeEventListener("wheel", wheelHandler)
-    }
     nodeRef.current = node
     attachObserver(node)
-    if (node) {
-      node.addEventListener("wheel", wheelHandler, { passive: false })
-    }
-  }, [wheelHandler, attachObserver])
+  }, [attachObserver])
 
   // Raccourcis clavier : Ctrl+Plus/Minus/0
   useEffect(() => {

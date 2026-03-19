@@ -184,6 +184,18 @@ git add src-tauri/Cargo.lock && git commit --amend --no-edit
 
 Cela integre Cargo.lock dans le commit de release sans creer un commit supplementaire.
 
+#### 6d: Recaler le tag sur le commit amende
+
+L'amend a change le SHA du commit, mais le tag cree par bumpp pointe encore sur l'ancien SHA. Il faut le recreer sur HEAD:
+
+```bash
+# Recuperer le nom du tag (vX.Y.Z) depuis le dernier tag
+TAG=$(git describe --tags --abbrev=0)
+git tag -d "$TAG" && git tag "$TAG" HEAD
+```
+
+**IMPORTANT:** Cette etape est obligatoire apres l'amend. Sans elle, le tag pointe sur un commit orphelin et les workflows GitHub Actions (declenchement sur tag push) ne fonctionneront pas.
+
 ### Etape 7: Rapport final et push
 
 #### 7a: Afficher le rapport
@@ -213,7 +225,7 @@ Demander a l'utilisateur : **"Push vers origin ? (oui/non)"**
 - Si pas de remote configure: warning et skip le push
 - Si l'utilisateur refuse: afficher "Push skipped"
 - Si l'utilisateur accepte et **sans bump**: `git push origin HEAD`
-- Si l'utilisateur accepte et **avec bump**: `git push origin HEAD && git push origin --tags`
+- Si l'utilisateur accepte et **avec bump**: `git push origin HEAD && git push origin --tags --force`
 
 ---
 
