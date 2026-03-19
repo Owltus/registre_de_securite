@@ -57,11 +57,13 @@ export function useChapterZoom() {
     observerRef.current = observer
   }, [])
 
-  // Zoom : ±1 colonne
+  // Zoom : ±1 colonne (clamp sur maxColumns pour éviter les pas fantômes après resize)
   const zoom = useCallback(
     (direction: 1 | -1) => {
       setLocalOverride((prev) => {
-        const current = resolveColumns(prev ?? parseSaved(savedValue), maxColumns)
+        const raw = prev ?? parseSaved(savedValue)
+        const clamped = raw !== 0 ? Math.min(raw, maxColumns) : raw
+        const current = resolveColumns(clamped, maxColumns)
         const next = direction === 1
           ? Math.max(current - 1, MIN_COLUMNS)
           : Math.min(current + 1, maxColumns)
